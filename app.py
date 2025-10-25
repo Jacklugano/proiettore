@@ -8,6 +8,7 @@ from config import Config
 from video_player import VideoPlayer
 from network_manager import NetworkManager
 from scheduler import PlaybackScheduler
+from config_manager import ConfigManager
 
 # Setup logging
 logging.basicConfig(
@@ -26,6 +27,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # Initialize components
+config_manager = ConfigManager()
 player = VideoPlayer(volume=Config.VOLUME)
 network = NetworkManager()
 scheduler = PlaybackScheduler()
@@ -184,14 +186,141 @@ def api_toggle_schedule(schedule_id):
     return jsonify({'success': success})
 
 
+# Configuration endpoints
+@app.route('/api/config', methods=['GET'])
+def api_get_config():
+    """Get all configuration settings"""
+    network_config = config_manager.get_network_config()
+    player_config = config_manager.get_player_config()
+
+    # Don't send password in response, only indicate if it's set
+    response_config = {
+        'network': {
+            'share_path': network_config['share_path'],
+            'username': network_config['username'],
+            'has_password': bool(network_config['password']),
+            'mount_point': network_config['mount_point']
+        },
+        'player': player_config
+    }
+
+    return jsonify(response_config)
+
+
+@app.route('/api/config/network', methods=['POST'])
+def api_set_network_config():
+    """Set network configuration"""
+    data = request.get_json()
+
+    share_path = data.get('share_path', '')
+    username = data.get('username', '')
+    password = data.get('password', '')
+    mount_point = data.get('mount_point', '/mnt/network_videos')
+
+    # Save to database
+    success = config_manager.set_network_config(
+        share_path=share_path,
+        username=username,
+        password=password,
+        mount_point=mount_point
+    )
+
+    if success:
+        # Update network manager with new config
+        network.update_config(
+            share_path=share_path,
+            username=username,
+            password=password,
+            mount_point=mount_point
+        )
+
+    return jsonify({'success': success})
+
+
+@app.route('/api/config/network/test', methods=['POST'])
+def api_test_network():
+    """Test network configuration without saving"""
+    data = request.get_json()
+
+    share_path = data.get('share_path', '')
+    username = data.get('username', '')
+    password = data.get('password', '')
+    mount_point = data.get('mount_point', '/mnt/network_videos')
+
+    # Create temporary network manager for testing
+    test_network = NetworkManager()
+    test_network.update_config(
+        share_path=share_path,
+        username=username,
+        password=password,
+        mount_point=mount_point
+    )
+
+    # Try to mount
+    success = test_network.mount_share()
+
+    # Clean up - unmount if successful
+    if success:
+        test_network.unmount_share()
+
+    return jsonify({
+        'success': success,
+        'message': 'Connection successful' if success else 'Connection failed'
+    })
+
+
+@app.route('/api/config/player', methods=['POST'])
+def api_set_player_config():
+    """Set player configuration"""
+    data = request.get_json()
+
+    volume = data.get('volume')
+    loop_playlist = data.get('loop_playlist')
+    auto_start = data.get('auto_start')
+    video_extensions = data.get('video_extensions')
+
+    # Save to database
+    success = config_manager.set_player_config(
+        volume=int(volume) if volume is not None else None,
+        loop_playlist=loop_playlist,
+        auto_start=auto_start,
+        video_extensions=video_extensions
+    )
+
+    if success and volume is not None:
+        # Update player volume immediately
+        player.set_volume(int(volume))
+
+    return jsonify({'success': success})
+
+
 def initialize_app():
     """Initialize application components"""
     logger.info("Initializing Proiettore...")
 
+    # Load configuration from database (overrides .env if present)
+    network_config = config_manager.get_network_config()
+    if network_config['share_path']:
+        logger.info("Loading network configuration from database...")
+        network.update_config(
+            share_path=network_config['share_path'],
+            username=network_config['username'],
+            password=network_config['password'],
+            mount_point=network_config['mount_point']
+        )
+    elif Config.NETWORK_SHARE_PATH:
+        # Fallback to .env config
+        logger.info("Loading network configuration from .env...")
+
     # Mount network share if configured
-    if Config.NETWORK_SHARE_PATH:
+    if network.share_path:
         logger.info("Mounting network share...")
         network.mount_share()
+
+    # Load player configuration from database
+    player_config = config_manager.get_player_config()
+    if player_config['volume']:
+        player.set_volume(player_config['volume'])
 
     # Start scheduler
     logger.info("Starting scheduler...")
@@ -199,12 +328,14 @@ def initialize_app():
     scheduler.load_schedules(scheduled_play)
 
     # Auto-start if configured
-    if Config.AUTO_START:
+    auto_start = player_config.get('auto_start', Config.AUTO_START)
+    if auto_start:
         videos = network.get_video_files()
         if videos:
             logger.info("Auto-start enabled, loading playlist...")
             player.load_playlist(videos)
-            if Config.LOOP_PLAYLIST:
+            loop_playlist = player_config.get('loop_playlist', Config.LOOP_PLAYLIST)
+            if loop_playlist:
                 player.play(videos[0])
 
     logger.info("Proiettore initialized successfully!")

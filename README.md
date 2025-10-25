@@ -9,8 +9,10 @@ Sistema di riproduzione video automatizzato per Raspberry Pi 5 con supporto per 
 - 🖥️ **Output HDMI**: Video su HDMI con audio tramite uscita Raspberry Pi
 - 📅 **Schedulazione**: Programmazione automatica di riproduzione video
 - 🎛️ **Interfaccia web**: Controllo completo tramite browser
+- ⚙️ **Configurazione web**: Configurazione completa tramite interfaccia web (nessun file da modificare!)
 - 🔄 **Playlist**: Gestione playlist e riproduzione continua
 - ⚡ **Auto-start**: Avvio automatico all'accensione del Raspberry Pi
+- 💾 **Database**: Tutte le configurazioni persistono nel database
 
 ## Requisiti
 
@@ -42,44 +44,7 @@ Lo script installerà automaticamente:
 - Ambiente virtuale Python
 - Servizio systemd
 
-### 3. Configura la cartella di rete
-
-Puoi configurare manualmente il file `.env` oppure usare lo script interattivo:
-
-```bash
-./setup_network.sh
-```
-
-Oppure modifica manualmente:
-
-```bash
-nano .env
-```
-
-Configura i seguenti parametri:
-
-```bash
-# Percorso share di rete (es: //192.168.1.100/videos)
-NETWORK_SHARE_PATH=//tuo-server/cartella-video
-
-# Credenziali (lascia vuoto per accesso guest)
-NETWORK_SHARE_USER=nomeutente
-NETWORK_SHARE_PASSWORD=password
-
-# Punto di montaggio locale
-NETWORK_SHARE_MOUNT_POINT=/mnt/network_videos
-
-# Porta web (default: 5000)
-FLASK_PORT=5000
-
-# Volume di default (0-100)
-VOLUME=100
-
-# Estensioni video supportate
-VIDEO_EXTENSIONS=mp4,avi,mkv,mov,wmv,flv,webm
-```
-
-### 4. Avvia il servizio
+### 3. Avvia il servizio
 
 ```bash
 # Avvio manuale
@@ -91,6 +56,34 @@ sudo systemctl status proiettore
 # Abilita avvio automatico
 sudo systemctl enable proiettore
 ```
+
+### 4. Configurazione Iniziale
+
+**Apri l'interfaccia web** nel browser:
+```
+http://<indirizzo-ip-raspberry>:5000
+```
+
+Vai alla tab **"Impostazioni"** e configura:
+
+1. **Cartella di Rete**:
+   - Inserisci il percorso della share (es: //192.168.1.100/videos)
+   - Inserisci username e password (se richieste)
+   - Clicca "Testa Connessione" per verificare
+   - Clicca "Salva Configurazione"
+
+2. **Impostazioni Player** (opzionale):
+   - Imposta volume predefinito
+   - Configura estensioni video
+   - Abilita loop playlist o avvio automatico
+
+3. **Torna alla tab Player**:
+   - Clicca "Monta" per montare la cartella di rete
+   - Clicca "Aggiorna Video" per caricare la lista
+
+Fatto! Ora puoi riprodurre i tuoi video.
+
+> **Configurazione Alternativa (Opzionale)**: Se preferisci, puoi configurare manualmente modificando il file `.env` o usando lo script `./setup_network.sh`. Tuttavia, **la configurazione tramite web è il metodo raccomandato** perché più semplice e immediato.
 
 ## Utilizzo
 
@@ -110,30 +103,41 @@ hostname -I
 
 ### Interfaccia Web
 
-L'interfaccia è divisa in tre sezioni principali:
+L'interfaccia è organizzata in **3 tab principali**:
 
-#### 1. Controlli Riproduzione (Sinistra)
-- **Play/Pausa/Stop**: Controllo riproduzione
+#### Tab 1: Player
+Gestione della riproduzione video:
+- **Controlli Riproduzione**: Play, Pausa, Stop, Precedente, Successivo
 - **Volume**: Regolazione volume (0-100%)
-- **Precedente/Successivo**: Navigazione playlist
-- **Stato**: Visualizzazione video corrente e stato player
+- **Stato Player**: Visualizzazione video corrente e stato
+- **Cartella di Rete**: Monta/smonta cartella e aggiorna lista video
+- **Lista Video**: Tutti i video disponibili (click per selezionare, doppio click per riprodurre)
+- **Carica Playlist**: Carica tutti i video nella playlist
 
-#### 2. Lista Video (Centro)
-- Visualizza tutti i video disponibili
-- Click per selezionare
-- Doppio click per riprodurre
-- Pulsante "Carica Playlist" per caricare tutti i video
-
-#### 3. Programmazione (Destra)
-- **Aggiungi programmazione**: Imposta orari di riproduzione automatica
+#### Tab 2: Programmazione
+Schedulazione automatica della riproduzione:
+- **Nuova Programmazione**: Crea schedule con nome, video, ora e giorni
+- **Programmazioni Attive**: Lista delle programmazioni con possibilità di abilitare/disabilitare ed eliminare
 - **Giorni della settimana**: Specifica giorni (es: mon,wed,fri) o lascia vuoto per ogni giorno
-- **Gestione**: Abilita/Disabilita o elimina programmazioni
 
-### Gestione Cartella di Rete
+#### Tab 3: Impostazioni
+**Configurazione completa tramite interfaccia web** (nessun file da modificare manualmente!):
 
-1. **Monta**: Connette alla cartella di rete configurata
-2. **Smonta**: Disconnette la cartella di rete
-3. **Aggiorna Video**: Ricarica l'elenco dei video disponibili
+**Configurazione Cartella di Rete:**
+- **Percorso Share**: Indirizzo della cartella di rete (es: //192.168.1.100/videos)
+- **Username/Password**: Credenziali di accesso (opzionali, lascia vuoto per guest)
+- **Punto di Montaggio**: Cartella locale dove montare (default: /mnt/network_videos)
+- **Testa Connessione**: Verifica la connessione prima di salvare
+- **Salva**: Salva la configurazione nel database (persistente)
+
+**Configurazione Player:**
+- **Volume Predefinito**: Volume iniziale (0-100%)
+- **Estensioni Video**: Formati supportati (separati da virgola)
+- **Loop Playlist**: Ripeti automaticamente la playlist
+- **Avvio Automatico**: Carica e avvia la playlist all'avvio del sistema
+- **Salva**: Salva la configurazione nel database (persistente)
+
+> **Nota**: Tutte le configurazioni sono salvate nel database e non richiedono la modifica di file. Le impostazioni persistono anche dopo il riavvio del sistema.
 
 ### Esempi di Programmazione
 

@@ -21,6 +21,7 @@ class ProiettoreApp {
         // Load initial data
         this.loadVideos();
         this.loadSchedules();
+        this.loadConfig();
     }
 
     bindEvents() {
@@ -48,6 +49,25 @@ class ProiettoreApp {
         document.getElementById('schedule-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.addSchedule();
+        });
+
+        // Configuration forms
+        document.getElementById('network-config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveNetworkConfig();
+        });
+
+        document.getElementById('player-config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.savePlayerConfig();
+        });
+
+        document.getElementById('btn-test-network').addEventListener('click', () => this.testNetworkConfig());
+
+        // Config volume slider
+        const configVolumeSlider = document.getElementById('config-volume');
+        configVolumeSlider.addEventListener('input', (e) => {
+            document.getElementById('config-volume-value').textContent = e.target.value;
         });
     }
 
@@ -393,6 +413,146 @@ class ProiettoreApp {
 
         } catch (error) {
             console.error('Error toggling schedule:', error);
+        }
+    }
+
+    async loadConfig() {
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+
+            // Populate network config form
+            document.getElementById('config-share-path').value = config.network.share_path || '';
+            document.getElementById('config-username').value = config.network.username || '';
+            document.getElementById('config-mount-point').value = config.network.mount_point || '/mnt/network_videos';
+            // Don't set password field
+
+            // Populate player config form
+            document.getElementById('config-volume').value = config.player.volume || 100;
+            document.getElementById('config-volume-value').textContent = config.player.volume || 100;
+            document.getElementById('config-video-extensions').value = config.player.video_extensions || 'mp4,avi,mkv,mov,wmv,flv,webm';
+            document.getElementById('config-loop-playlist').checked = config.player.loop_playlist || false;
+            document.getElementById('config-auto-start').checked = config.player.auto_start || false;
+
+            console.log('Configuration loaded');
+
+        } catch (error) {
+            console.error('Error loading configuration:', error);
+        }
+    }
+
+    async saveNetworkConfig() {
+        const sharePath = document.getElementById('config-share-path').value;
+        const username = document.getElementById('config-username').value;
+        const password = document.getElementById('config-password').value;
+        const mountPoint = document.getElementById('config-mount-point').value;
+
+        if (!sharePath) {
+            alert('Inserisci il percorso della share di rete');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/config/network', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    share_path: sharePath,
+                    username: username,
+                    password: password,
+                    mount_point: mountPoint
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Configurazione di rete salvata con successo!');
+                // Clear password field for security
+                document.getElementById('config-password').value = '';
+            } else {
+                alert('Errore nel salvare la configurazione');
+            }
+
+        } catch (error) {
+            console.error('Error saving network config:', error);
+            alert('Errore nel salvare la configurazione');
+        }
+    }
+
+    async testNetworkConfig() {
+        const sharePath = document.getElementById('config-share-path').value;
+        const username = document.getElementById('config-username').value;
+        const password = document.getElementById('config-password').value;
+        const mountPoint = document.getElementById('config-mount-point').value;
+
+        if (!sharePath) {
+            alert('Inserisci il percorso della share di rete');
+            return;
+        }
+
+        const resultDiv = document.getElementById('network-test-result');
+        resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Test in corso...</div>';
+        resultDiv.style.display = 'block';
+
+        try {
+            const response = await fetch('/api/config/network/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    share_path: sharePath,
+                    username: username,
+                    password: password,
+                    mount_point: mountPoint
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Connessione riuscita!</div>';
+            } else {
+                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Connessione fallita. Verifica i parametri.</div>';
+            }
+
+        } catch (error) {
+            console.error('Error testing network:', error);
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Errore durante il test.</div>';
+        }
+    }
+
+    async savePlayerConfig() {
+        const volume = parseInt(document.getElementById('config-volume').value);
+        const videoExtensions = document.getElementById('config-video-extensions').value;
+        const loopPlaylist = document.getElementById('config-loop-playlist').checked;
+        const autoStart = document.getElementById('config-auto-start').checked;
+
+        try {
+            const response = await fetch('/api/config/player', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    volume: volume,
+                    video_extensions: videoExtensions,
+                    loop_playlist: loopPlaylist,
+                    auto_start: autoStart
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Configurazione player salvata con successo!');
+                // Update the main volume slider as well
+                document.getElementById('volume-slider').value = volume;
+                document.getElementById('volume-value').textContent = volume;
+            } else {
+                alert('Errore nel salvare la configurazione');
+            }
+
+        } catch (error) {
+            console.error('Error saving player config:', error);
+            alert('Errore nel salvare la configurazione');
         }
     }
 

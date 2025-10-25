@@ -20,6 +20,19 @@ class NetworkManager:
         self.password = Config.NETWORK_SHARE_PASSWORD
         self.is_mounted = False
 
+    def update_config(self, share_path: str = None, username: str = None, password: str = None, mount_point: str = None):
+        """Update network configuration dynamically"""
+        if share_path is not None:
+            self.share_path = share_path
+        if username is not None:
+            self.username = username
+        if password is not None:
+            self.password = password
+        if mount_point is not None:
+            self.mount_point = mount_point
+
+        logger.info("Network configuration updated dynamically")
+
     def mount_share(self) -> bool:
         """
         Mount network share using CIFS/SMB
