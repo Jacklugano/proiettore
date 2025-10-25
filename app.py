@@ -247,6 +247,14 @@ def api_test_network():
     password = data.get('password', '')
     mount_point = data.get('mount_point', '/mnt/network_videos')
 
+    # Validate inputs
+    if not share_path:
+        return jsonify({
+            'success': False,
+            'message': 'Errore: Percorso share mancante',
+            'error': 'Share path is required'
+        })
+
     # Create temporary network manager for testing
     test_network = NetworkManager()
     test_network.update_config(
@@ -259,13 +267,40 @@ def api_test_network():
     # Try to mount
     success = test_network.mount_share()
 
+    # Get error details if failed
+    error_detail = test_network.get_last_error() if not success else None
+
     # Clean up - unmount if successful
     if success:
         test_network.unmount_share()
 
+    # Build response message
+    if success:
+        message = 'Connessione riuscita! ✓'
+    else:
+        message = 'Connessione fallita. Controlla i parametri.'
+        if error_detail:
+            # Try to provide helpful error message in Italian
+            if 'Permission denied' in error_detail or 'access denied' in error_detail.lower():
+                message = 'Errore: Credenziali non valide o permessi insufficienti'
+            elif 'No route to host' in error_detail or 'Network is unreachable' in error_detail:
+                message = 'Errore: NAS non raggiungibile. Controlla indirizzo IP e connessione di rete'
+            elif 'Host is down' in error_detail:
+                message = 'Errore: NAS spento o non raggiungibile'
+            elif 'timeout' in error_detail.lower():
+                message = 'Errore: Timeout connessione. Controlla firewall e connessione di rete'
+            elif 'Invalid argument' in error_detail:
+                message = 'Errore: Formato percorso share non valido. Usa: //IP/cartella'
+
     return jsonify({
         'success': success,
-        'message': 'Connection successful' if success else 'Connection failed'
+        'message': message,
+        'error': error_detail,
+        'details': {
+            'share_path': share_path,
+            'has_username': bool(username),
+            'mount_point': mount_point
+        }
     })
 
 

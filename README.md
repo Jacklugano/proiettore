@@ -276,7 +276,113 @@ sudo systemctl restart proiettore
 
 ## Risoluzione Problemi
 
-### La cartella di rete non si monta
+### Problemi connessione NAS Synology
+
+#### ❌ Errore: "Connessione fallita"
+
+**Causa 1: SMB non abilitato o versione non compatibile**
+- Soluzione: Sul Synology vai in `Pannello di Controllo` → `Servizi File` → `SMB`
+- Abilita SMB/CIFS
+- Imposta versione minima su `SMB2` o superiore
+- Riavvia il servizio SMB
+
+**Causa 2: Percorso share errato**
+```bash
+✗ ERRATO: /volume1/video
+✗ ERRATO: \\192.168.1.50\video
+✓ CORRETTO: //192.168.1.50/video
+✓ CORRETTO: //synology-nas/video
+```
+
+**Causa 3: Credenziali non valide**
+- Usa un utente Synology esistente (non admin DSM se disabilitato)
+- La password deve essere corretta
+- L'utente deve avere permessi di lettura sulla cartella
+
+**Causa 4: Firewall blocca connessione**
+- Sul Synology: `Pannello di Controllo` → `Sicurezza` → `Firewall`
+- Assicurati che la porta SMB (445) sia aperta
+- Oppure disabilita temporaneamente il firewall per test
+
+**Causa 5: Cartella non condivisa**
+- Sul Synology: `Pannello di Controllo` → `Cartella Condivisa`
+- Verifica che la cartella sia effettivamente condivisa
+- Controlla i permessi dell'utente sulla cartella
+
+#### 🔧 Test Diagnostici
+
+**1. Verifica connettività di rete**
+```bash
+# Dal Raspberry Pi, verifica che il NAS risponda
+ping 192.168.1.50
+
+# Verifica che la porta SMB sia aperta
+telnet 192.168.1.50 445
+# Dovresti vedere "Connected" se la porta è aperta
+```
+
+**2. Test mount manuale con logging dettagliato**
+```bash
+# Prova mount manuale per vedere errore preciso
+sudo mount -t cifs //192.168.1.50/video /mnt/test \
+  -o username=tuoutente,password=tuapassword,vers=3.0,sec=ntlmssp -v
+
+# Se fallisce, prova con SMB 2.1
+sudo mount -t cifs //192.168.1.50/video /mnt/test \
+  -o username=tuoutente,password=tuapassword,vers=2.1,sec=ntlmssp -v
+```
+
+**3. Verifica versioni SMB supportate dal NAS**
+```bash
+# Installa smbclient
+sudo apt-get install smbclient
+
+# Testa connessione e vedi versioni supportate
+smbclient -L //192.168.1.50 -U tuoutente
+```
+
+**4. Controlla i log di sistema**
+```bash
+# Guarda log mount dettagliati
+sudo dmesg | tail -20
+
+# Log del servizio
+sudo journalctl -u proiettore -n 50
+```
+
+#### 📋 Checklist Synology
+
+Prima di contattare il supporto, verifica:
+
+- [ ] NAS acceso e raggiungibile in rete
+- [ ] Indirizzo IP corretto (prova a pingare)
+- [ ] SMB abilitato su Synology
+- [ ] Versione SMB 2.0 o superiore attivata
+- [ ] Cartella effettivamente condivisa
+- [ ] Username e password corretti
+- [ ] Utente ha permessi di lettura sulla cartella
+- [ ] Firewall Synology permette connessioni SMB
+- [ ] Formato percorso corretto: `//IP/cartella`
+- [ ] Testato con pulsante "Testa Connessione" nell'interfaccia web
+
+#### 💡 Soluzioni Rapide
+
+**Problema: "Permission denied"**
+- Vai su Synology → Pannello di Controllo → Cartella Condivisa
+- Clicca sulla cartella → Modifica → Permessi
+- Aggiungi il tuo utente con permessi di Lettura/Scrittura
+
+**Problema: "Host is down"**
+- Verifica che il NAS non sia in ibernazione
+- Su Synology: Pannello di Controllo → Hardware e alimentazione → Ibernazione HDD
+- Disabilita ibernazione o imposta timer più lungo
+
+**Problema: "No route to host"**
+- Raspberry Pi e NAS devono essere sulla stessa rete
+- Verifica IP con `ip addr` sul Raspberry Pi
+- Verifica IP del NAS nel pannello Synology
+
+### La cartella di rete non si monta (generico)
 
 1. Verifica la connettività di rete:
    ```bash

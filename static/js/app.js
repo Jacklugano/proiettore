@@ -492,7 +492,13 @@ class ProiettoreApp {
         }
 
         const resultDiv = document.getElementById('network-test-result');
-        resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Test in corso...</div>';
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-hourglass-split spinner-border-sm"></i>
+                <strong>Test in corso...</strong><br>
+                <small>Tentativo di connessione al NAS. Questo potrebbe richiedere alcuni secondi...</small>
+            </div>
+        `;
         resultDiv.style.display = 'block';
 
         try {
@@ -510,14 +516,53 @@ class ProiettoreApp {
             const data = await response.json();
 
             if (data.success) {
-                resultDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Connessione riuscita!</div>';
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <strong>${data.message}</strong><br>
+                        <small>Il NAS è raggiungibile e le credenziali sono corrette. Puoi salvare la configurazione.</small>
+                    </div>
+                `;
             } else {
-                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Connessione fallita. Verifica i parametri.</div>';
+                // Build detailed error message
+                let errorHtml = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle-fill"></i>
+                        <strong>${data.message}</strong><br>
+                `;
+
+                // Add technical details if available
+                if (data.error) {
+                    errorHtml += `<hr><small><strong>Dettagli tecnici:</strong><br>${data.error}</small>`;
+                }
+
+                // Add troubleshooting tips
+                errorHtml += `
+                    <hr>
+                    <small><strong>Suggerimenti:</strong>
+                    <ul class="mb-0" style="margin-top: 8px;">
+                        <li>Verifica che il NAS sia acceso e raggiungibile</li>
+                        <li>Controlla che l'indirizzo IP sia corretto</li>
+                        <li>Assicurati che username e password siano corretti</li>
+                        <li>Verifica che SMB sia abilitato sul NAS</li>
+                        <li>Controlla che la cartella esista e sia condivisa</li>
+                    </ul>
+                    </small>
+                    </div>
+                `;
+
+                resultDiv.innerHTML = errorHtml;
             }
 
         } catch (error) {
             console.error('Error testing network:', error);
-            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle"></i> Errore durante il test.</div>';
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Errore durante il test</strong><br>
+                    <small>${error.message}</small>
+                </div>
+            `;
         }
     }
 
