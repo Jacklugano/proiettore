@@ -42,30 +42,52 @@ class NetworkManager:
         Returns:
             (success: bool, error_message: str)
         """
-        credentials_file = None
+        credentials_file_path = None
         try:
-            # Create temporary credentials file for security
+            # Create temporary credentials file owned by root for security
             if self.username or self.password:
-                credentials_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.cred')
+                import time
+                # Generate unique temporary filename
+                credentials_file_path = f'/tmp/proiettore_creds_{os.getpid()}_{int(time.time())}.cred'
 
+                # Build credentials content
+                cred_content = ''
                 if self.username:
-                    credentials_file.write(f'username={self.username}\n')
+                    cred_content += f'username={self.username}\n'
                 else:
-                    credentials_file.write('username=guest\n')
+                    cred_content += 'username=guest\n'
 
                 if self.password:
-                    credentials_file.write(f'password={self.password}\n')
+                    cred_content += f'password={self.password}\n'
 
-                credentials_file.close()
+                # Write file as root using sudo tee
+                # This ensures the file is owned by root
+                write_result = subprocess.run(
+                    ['/usr/bin/sudo', 'tee', credentials_file_path],
+                    input=cred_content,
+                    text=True,
+                    capture_output=True,
+                    timeout=5
+                )
 
-                # Set permissions readable by root (needed for sudo mount)
-                # 0o644 = rw-r--r-- (owner can write, everyone can read)
-                # This is safe because the file is deleted immediately after mount
-                os.chmod(credentials_file.name, 0o644)
+                if write_result.returncode != 0:
+                    logger.error(f"Failed to create credentials file: {write_result.stderr}")
+                    return False, "Failed to create credentials file"
+
+                # Set permissions as root (only root can read: 0600)
+                chmod_result = subprocess.run(
+                    ['/usr/bin/sudo', 'chmod', '600', credentials_file_path],
+                    capture_output=True,
+                    timeout=5
+                )
+
+                if chmod_result.returncode != 0:
+                    logger.error(f"Failed to set credentials file permissions")
+                    return False, "Failed to set credentials file permissions"
 
                 # Use credentials file
-                options = [f'credentials={credentials_file.name}']
-                logger.debug(f"Created credentials file: {credentials_file.name} with perms 0o644")
+                options = [f'credentials={credentials_file_path}']
+                logger.debug(f"Created root-owned credentials file: {credentials_file_path} with perms 0600")
             else:
                 # Guest access
                 options = ['guest']
@@ -117,10 +139,15 @@ class NetworkManager:
         except Exception as e:
             return False, str(e)
         finally:
-            # Always clean up credentials file
-            if credentials_file and os.path.exists(credentials_file.name):
+            # Always clean up credentials file (using sudo since it's owned by root)
+            if credentials_file_path:
                 try:
-                    os.unlink(credentials_file.name)
+                    subprocess.run(
+                        ['/usr/bin/sudo', 'rm', '-f', credentials_file_path],
+                        capture_output=True,
+                        timeout=5
+                    )
+                    logger.debug(f"Cleaned up credentials file: {credentials_file_path}")
                 except Exception as e:
                     logger.warning(f"Failed to delete credentials file: {e}")
 

@@ -44,7 +44,7 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 - 🎯 UX migliorata per configurazione iniziale
 
 ### Corretto
-- 🐛 **CRITICO: Permission denied con mount.cifs** - Corretti permessi file credentials (0o600 → 0o644) per permettere a root di leggere le credenziali durante il mount SMB
+- 🐛 **CRITICO: Permission denied con mount.cifs** - File credentials ora creato come root usando sudo tee/chmod. Mount.cifs richiede che il file credentials sia di proprietà di root quando mount viene eseguito con sudo. Risolve definitivamente l'errore "mount error(13): Permission denied"
 - 🐛 Problemi di connessione con NAS Synology
 - 🐛 Compatibilità SMB con diverse versioni
 

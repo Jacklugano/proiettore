@@ -13,13 +13,16 @@ echo "Creazione regola sudoers per utente: $CURRENT_USER"
 
 # Crea il contenuto del file sudoers
 cat > /tmp/proiettore-sudoers <<EOF
-# Proiettore - Allow mount/umount without password
+# Proiettore - Allow mount/umount and credentials file management without password
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/mount -t cifs * * -o *
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/mount -t cifs * * -o *
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/mount
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/mount
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/umount *
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/umount *
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/tee /tmp/proiettore_creds_*
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/chmod * /tmp/proiettore_creds_*
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/rm -f /tmp/proiettore_creds_*
 EOF
 
 # Verifica la sintassi
