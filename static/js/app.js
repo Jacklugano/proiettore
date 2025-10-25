@@ -63,6 +63,7 @@ class ProiettoreApp {
         });
 
         document.getElementById('btn-test-network').addEventListener('click', () => this.testNetworkConfig());
+        document.getElementById('btn-browse-shares').addEventListener('click', () => this.browseShares());
 
         // Config volume slider
         const configVolumeSlider = document.getElementById('config-volume');
@@ -564,6 +565,148 @@ class ProiettoreApp {
                 </div>
             `;
         }
+    }
+
+    async browseShares() {
+        const sharePath = document.getElementById('config-share-path').value;
+        const username = document.getElementById('config-username').value;
+        const password = document.getElementById('config-password').value;
+
+        // Extract host from share path (e.g., "//192.168.1.100/share" -> "192.168.1.100")
+        let host = '';
+        if (sharePath) {
+            host = sharePath.replace('//', '').split('/')[0];
+        }
+
+        if (!host) {
+            alert('Inserisci almeno l\'indirizzo IP/hostname del NAS nel campo "Percorso Share" (es: //192.168.1.100/cartella)');
+            return;
+        }
+
+        const resultDiv = document.getElementById('shares-browser-result');
+        resultDiv.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-hourglass-split spinner-border-sm"></i>
+                <strong>Ricerca cartelle condivise...</strong><br>
+                <small>Connessione a ${host}...</small>
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+
+        try {
+            const response = await fetch('/api/config/network/browse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    host: host,
+                    username: username,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.shares.length > 0) {
+                // Build shares list with click handlers
+                let sharesHtml = `
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <i class="bi bi-folder-fill"></i> ${data.message}
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2"><strong>Host:</strong> ${data.host}</p>
+                            <p class="mb-3"><small class="text-muted">Clicca su una cartella per selezionarla</small></p>
+                            <div class="list-group">
+                `;
+
+                data.shares.forEach(share => {
+                    sharesHtml += `
+                        <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center share-item"
+                           data-share-path="${share.full_path}">
+                            <div>
+                                <i class="bi bi-hdd-fill text-primary"></i>
+                                <strong>${share.name}</strong>
+                                <small class="text-muted ms-2">${share.type}</small>
+                            </div>
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    `;
+                });
+
+                sharesHtml += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                resultDiv.innerHTML = sharesHtml;
+
+                // Add click handlers to shares
+                document.querySelectorAll('.share-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const sharePath = item.getAttribute('data-share-path');
+                        document.getElementById('config-share-path').value = sharePath;
+
+                        // Visual feedback
+                        document.querySelectorAll('.share-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+
+                        // Show success message
+                        this.showShareSelected(sharePath);
+                    });
+                });
+
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>${data.message}</strong><br>
+                        <hr>
+                        <small><strong>Possibili cause:</strong>
+                        <ul class="mb-0" style="margin-top: 8px;">
+                            <li>Il NAS non è raggiungibile dalla rete</li>
+                            <li>Il servizio SMB non è abilitato sul NAS</li>
+                            <li>Le credenziali potrebbero essere necessarie (compila username e password)</li>
+                            <li>Il firewall potrebbe bloccare le connessioni SMB</li>
+                        </ul>
+                        </small>
+                    </div>
+                `;
+            }
+
+        } catch (error) {
+            console.error('Error browsing shares:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Errore durante la ricerca</strong><br>
+                    <small>${error.message}</small>
+                </div>
+            `;
+        }
+    }
+
+    showShareSelected(sharePath) {
+        const resultDiv = document.getElementById('shares-browser-result');
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success mt-2';
+        successMsg.innerHTML = `
+            <i class="bi bi-check-circle-fill"></i>
+            <strong>Cartella selezionata:</strong> ${sharePath}<br>
+            <small>Ora puoi testare la connessione o salvare la configurazione</small>
+        `;
+
+        // Find and replace any existing success message
+        const existingMsg = resultDiv.querySelector('.alert-success.mt-2');
+        if (existingMsg) {
+            existingMsg.remove();
+        }
+
+        resultDiv.appendChild(successMsg);
+
+        // Scroll to the success message
+        successMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     async savePlayerConfig() {

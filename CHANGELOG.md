@@ -10,6 +10,7 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Form per configurazione player (volume, estensioni, auto-start)
   - Test connessione di rete prima del salvataggio
   - Salvataggio configurazione persistente in database
+  - **Browser cartelle condivise SMB**: Esplora e seleziona cartelle disponibili sul NAS con un click
 
 - ✨ **Interfaccia web completamente ridisegnata**
   - Design moderno con gradienti colorati

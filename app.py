@@ -304,6 +304,39 @@ def api_test_network():
     })
 
 
+@app.route('/api/config/network/browse', methods=['POST'])
+def api_browse_shares():
+    """Browse available SMB shares on a host"""
+    data = request.get_json()
+
+    host = data.get('host', '')
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    if not host:
+        return jsonify({
+            'success': False,
+            'message': 'Indirizzo host mancante',
+            'shares': []
+        })
+
+    # Clean up host (remove // and /share if present)
+    host_clean = host.replace('//', '').split('/')[0]
+
+    # Create temporary network manager
+    temp_network = NetworkManager()
+
+    # List shares
+    shares = temp_network.list_shares(host_clean, username, password)
+
+    return jsonify({
+        'success': len(shares) > 0,
+        'message': f'Trovate {len(shares)} cartelle condivise' if shares else 'Nessuna cartella trovata o errore di connessione',
+        'shares': shares,
+        'host': host_clean
+    })
+
+
 @app.route('/api/config/player', methods=['POST'])
 def api_set_player_config():
     """Set player configuration"""

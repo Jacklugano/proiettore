@@ -177,6 +177,102 @@ class NetworkManager:
         """Get the last error message"""
         return self.last_error
 
+    def list_shares(self, host: str, username: str = None, password: str = None) -> List[dict]:
+        """
+        List available SMB shares on a host
+
+        Args:
+            host: Hostname or IP address (without //)
+            username: Optional username
+            password: Optional password
+
+        Returns:
+            List of share dictionaries with 'name' and 'type'
+        """
+        credentials_file = None
+        shares = []
+
+        try:
+            # Extract hostname from full path if needed
+            if '//' in host:
+                host = host.replace('//', '').split('/')[0]
+
+            # Build smbclient command
+            cmd = ['smbclient', '-L', host, '-N']  # -N for no password prompt initially
+
+            # If credentials provided, use them
+            if username:
+                cmd = ['smbclient', '-L', host, '-U', username]
+
+                if password:
+                    # Create credentials file for smbclient
+                    credentials_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.cred')
+                    credentials_file.write(f'username={username}\n')
+                    credentials_file.write(f'password={password}\n')
+                    credentials_file.close()
+                    os.chmod(credentials_file.name, 0o600)
+
+                    cmd.extend(['-A', credentials_file.name])
+
+            logger.info(f"Listing shares on {host}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode == 0:
+                # Parse smbclient output
+                lines = result.stdout.split('\n')
+                in_shares_section = False
+
+                for line in lines:
+                    line = line.strip()
+
+                    # Find the Sharename section
+                    if 'Sharename' in line and 'Type' in line:
+                        in_shares_section = True
+                        continue
+
+                    if in_shares_section:
+                        # End of shares section
+                        if line.startswith('---') or not line:
+                            continue
+
+                        # Parse share line (format: "ShareName    Type    Comment")
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            share_name = parts[0]
+                            share_type = parts[1]
+
+                            # Only include Disk shares, skip IPC$, print$, etc
+                            if share_type == 'Disk' and not share_name.endswith('$'):
+                                shares.append({
+                                    'name': share_name,
+                                    'type': share_type,
+                                    'path': f'//{host}/{share_name}'
+                                })
+
+                logger.info(f"Found {len(shares)} shares on {host}")
+            else:
+                logger.error(f"Failed to list shares: {result.stderr}")
+
+        except subprocess.TimeoutExpired:
+            logger.error("Timeout while listing shares")
+        except Exception as e:
+            logger.error(f"Error listing shares: {e}")
+        finally:
+            # Clean up credentials file
+            if credentials_file and os.path.exists(credentials_file.name):
+                try:
+                    os.unlink(credentials_file.name)
+                except Exception as e:
+                    logger.warning(f"Failed to delete credentials file: {e}")
+
+        return shares
+
     def unmount_share(self) -> bool:
         """
         Unmount network share
