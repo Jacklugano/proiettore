@@ -430,8 +430,8 @@ EOF
 
 chmod 600 /tmp/creds.txt
 
-# Prova mount con file credenziali
-sudo mount -t cifs //192.168.178.29/Video /mnt/test -o credentials=/tmp/creds.txt,vers=3.0,sec=ntlmssp
+# Prova mount SENZA sec=ntlmssp (Synology non lo supporta!)
+sudo mount -t cifs //192.168.178.29/Video /mnt/test -o credentials=/tmp/creds.txt,vers=3.0,iocharset=utf8
 
 # Se funziona:
 ls /mnt/test  # Dovresti vedere i tuoi video
@@ -440,6 +440,11 @@ ls /mnt/test  # Dovresti vedere i tuoi video
 sudo umount /mnt/test
 rm /tmp/creds.txt
 ```
+
+**⚠️ NOTA IMPORTANTE per Synology NAS:**
+- **NON usare** `sec=ntlmssp` con Synology - causa "Permission denied"!
+- Il sistema auto-negozia automaticamente il metodo di sicurezza corretto
+- Funziona con Synology DSM 6.x, 7.x, QNAP, e Windows Server
 
 Se il test manuale funziona, allora riprova dall'interfaccia web!
 

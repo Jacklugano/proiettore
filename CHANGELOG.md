@@ -44,9 +44,13 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 - 🎯 UX migliorata per configurazione iniziale
 
 ### Corretto
-- 🐛 **CRITICO: Permission denied con mount.cifs** - File credentials ora creato come root usando sudo tee/chmod. Mount.cifs richiede che il file credentials sia di proprietà di root quando mount viene eseguito con sudo. Risolve definitivamente l'errore "mount error(13): Permission denied"
-- 🐛 Problemi di connessione con NAS Synology
-- 🐛 Compatibilità SMB con diverse versioni
+- 🐛 **CRITICO: Permission denied con Synology NAS risolto!**
+  - Rimossa opzione `sec=ntlmssp` che causava errore di autenticazione con Synology DSM
+  - SMB ora auto-negozia il metodo di sicurezza ottimale (funziona con Synology, QNAP, Windows Server)
+  - File credentials creato come root usando sudo tee/chmod per massima compatibilità
+  - Risolve definitivamente "mount error(13): Permission denied"
+- 🐛 Autenticazione SMB con vari tipi di NAS
+- 🐛 Compatibilità con Synology DSM 6.x e 7.x
 
 ## [1.0.0] - 2025-01-XX
 

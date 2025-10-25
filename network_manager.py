@@ -93,12 +93,12 @@ class NetworkManager:
                 options = ['guest']
 
             # Base options
+            # Note: sec=ntlmssp removed - let SMB auto-negotiate security for better Synology compatibility
             options.extend([
                 'iocharset=utf8',
                 'file_mode=0777',
                 'dir_mode=0777',
                 f'vers={smb_version}',
-                'sec=ntlmssp',
                 'noperm',
                 'rw'
             ])
