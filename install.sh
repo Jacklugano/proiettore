@@ -59,6 +59,14 @@ echo "Creating mount point directory..."
 sudo mkdir -p /mnt/network_videos
 sudo chown $USER:$USER /mnt/network_videos
 
+# Configure sudoers for passwordless mount
+echo "Configuring sudoers for mount/umount..."
+if [ -f "./setup_sudoers.sh" ]; then
+    sudo ./setup_sudoers.sh
+else
+    echo "Warning: setup_sudoers.sh not found. You may need to configure sudoers manually."
+fi
+
 # Install systemd service
 echo "Installing systemd service..."
 cat > /tmp/proiettore.service <<EOF

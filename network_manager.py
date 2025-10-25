@@ -67,9 +67,9 @@ class NetworkManager:
             if extra_options:
                 options.extend(extra_options)
 
-            # Build mount command
+            # Build mount command (use full path to sudo for systemd compatibility)
             mount_cmd = [
-                'sudo', 'mount', '-t', 'cifs',
+                '/usr/bin/sudo', 'mount', '-t', 'cifs',
                 self.share_path,
                 self.mount_point,
                 '-o',
@@ -169,7 +169,7 @@ class NetworkManager:
                 return True
 
             result = subprocess.run(
-                ['sudo', 'umount', self.mount_point],
+                ['/usr/bin/sudo', 'umount', self.mount_point],
                 capture_output=True,
                 text=True
             )

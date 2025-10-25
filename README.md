@@ -85,6 +85,19 @@ Fatto! Ora puoi riprodurre i tuoi video.
 
 > **Configurazione Alternativa (Opzionale)**: Se preferisci, puoi configurare manualmente modificando il file `.env` o usando lo script `./setup_network.sh`. Tuttavia, **la configurazione tramite web è il metodo raccomandato** perché più semplice e immediato.
 
+### Configurazione Sudoers (Importante!)
+
+Per permettere al servizio di montare cartelle di rete senza richiedere password:
+
+```bash
+cd proiettore
+sudo ./setup_sudoers.sh
+```
+
+Questo script configura automaticamente i permessi necessari per l'utente corrente.
+
+> **Nota**: Se hai già installato Proiettore e hai problemi di mount con errore "No such file or directory: 'sudo'", esegui questo comando e poi riavvia il servizio con `sudo systemctl restart proiettore`
+
 ## Utilizzo
 
 ### Accesso all'interfaccia web
