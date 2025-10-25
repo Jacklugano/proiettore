@@ -58,11 +58,14 @@ class NetworkManager:
 
                 credentials_file.close()
 
-                # Set secure permissions (only owner can read)
-                os.chmod(credentials_file.name, 0o600)
+                # Set permissions readable by root (needed for sudo mount)
+                # 0o644 = rw-r--r-- (owner can write, everyone can read)
+                # This is safe because the file is deleted immediately after mount
+                os.chmod(credentials_file.name, 0o644)
 
                 # Use credentials file
                 options = [f'credentials={credentials_file.name}']
+                logger.debug(f"Created credentials file: {credentials_file.name} with perms 0o644")
             else:
                 # Guest access
                 options = ['guest']
@@ -92,6 +95,7 @@ class NetworkManager:
             ]
 
             logger.info(f"Trying mount with SMB {smb_version}: {self.share_path}")
+            logger.debug(f"Mount command: sudo mount -t cifs {self.share_path} {self.mount_point} -o <options>")
 
             result = subprocess.run(
                 mount_cmd,
@@ -210,7 +214,8 @@ class NetworkManager:
                     credentials_file.write(f'username={username}\n')
                     credentials_file.write(f'password={password}\n')
                     credentials_file.close()
-                    os.chmod(credentials_file.name, 0o600)
+                    # Use 0o644 for consistency (readable by all users)
+                    os.chmod(credentials_file.name, 0o644)
 
                     cmd.extend(['-A', credentials_file.name])
 
