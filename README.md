@@ -193,6 +193,87 @@ sudo journalctl -u proiettore --since today
 tail -f proiettore.log
 ```
 
+## Aggiornamento
+
+Per aggiornare Proiettore all'ultima versione disponibile, usa lo script automatico:
+
+### Metodo 1: Script Automatico (Raccomandato)
+
+```bash
+cd proiettore
+./update.sh
+```
+
+Lo script farà automaticamente:
+1. ✅ Controlla aggiornamenti disponibili
+2. ✅ Backup automatico di database e configurazione
+3. ✅ Arresta il servizio
+4. ✅ Scarica gli aggiornamenti da Git
+5. ✅ Aggiorna le dipendenze Python
+6. ✅ Riavvia il servizio
+7. ✅ Verifica il corretto funzionamento
+
+### Metodo 2: Aggiornamento Manuale
+
+```bash
+cd proiettore
+
+# Backup manuale
+cp proiettore.db proiettore.db.backup
+cp .env .env.backup
+
+# Ferma il servizio
+sudo systemctl stop proiettore
+
+# Aggiorna il codice
+git pull
+
+# Aggiorna dipendenze
+source venv/bin/activate
+pip install -r requirements.txt --upgrade
+
+# Riavvia il servizio
+sudo systemctl start proiettore
+
+# Verifica stato
+sudo systemctl status proiettore
+```
+
+### Verifica Versione
+
+```bash
+# Dalla directory proiettore
+git log -1 --oneline
+
+# Oppure controlla nella tab "Impostazioni" dell'interfaccia web
+```
+
+### Note Importanti
+
+- ⚠️ **I backup sono automatici**: Database e configurazione vengono salvati prima dell'aggiornamento
+- ⚠️ **Le configurazioni sono preservate**: Tutte le tue impostazioni rimarranno invariate
+- ⚠️ **Il servizio si riavvia automaticamente**: Nessun intervento manuale necessario
+- ✅ **Zero downtime**: L'aggiornamento richiede solo 10-30 secondi
+
+### Rollback (se necessario)
+
+Se qualcosa va storto, puoi tornare alla versione precedente:
+
+```bash
+# Ripristina database
+cp proiettore.db.backup.YYYYMMDD_HHMMSS proiettore.db
+
+# Ripristina configurazione
+cp .env.backup.YYYYMMDD_HHMMSS .env
+
+# Torna alla versione precedente
+git log --oneline  # trova l'hash del commit precedente
+git checkout HASH_COMMIT_PRECEDENTE
+
+# Riavvia
+sudo systemctl restart proiettore
+```
+
 ## Risoluzione Problemi
 
 ### La cartella di rete non si monta
