@@ -4,6 +4,7 @@ Network share manager for mounting and accessing network folders
 import os
 import subprocess
 import logging
+import tempfile
 from typing import List, Optional
 from config import Config
 
@@ -36,21 +37,35 @@ class NetworkManager:
 
     def _try_mount(self, smb_version: str, extra_options: list = None) -> tuple:
         """
-        Try to mount with specific SMB version
+        Try to mount with specific SMB version using credentials file
 
         Returns:
             (success: bool, error_message: str)
         """
+        credentials_file = None
         try:
-            # Build mount options
-            options = []
-            if self.username:
-                options.append(f'username={self.username}')
-            else:
-                options.append('guest')
+            # Create temporary credentials file for security
+            if self.username or self.password:
+                credentials_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.cred')
 
-            if self.password:
-                options.append(f'password={self.password}')
+                if self.username:
+                    credentials_file.write(f'username={self.username}\n')
+                else:
+                    credentials_file.write('username=guest\n')
+
+                if self.password:
+                    credentials_file.write(f'password={self.password}\n')
+
+                credentials_file.close()
+
+                # Set secure permissions (only owner can read)
+                os.chmod(credentials_file.name, 0o600)
+
+                # Use credentials file
+                options = [f'credentials={credentials_file.name}']
+            else:
+                # Guest access
+                options = ['guest']
 
             # Base options
             options.extend([
@@ -97,6 +112,13 @@ class NetworkManager:
             return False, "Connection timeout - Check network connectivity"
         except Exception as e:
             return False, str(e)
+        finally:
+            # Always clean up credentials file
+            if credentials_file and os.path.exists(credentials_file.name):
+                try:
+                    os.unlink(credentials_file.name)
+                except Exception as e:
+                    logger.warning(f"Failed to delete credentials file: {e}")
 
     def mount_share(self) -> bool:
         """

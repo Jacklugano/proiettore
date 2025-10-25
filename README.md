@@ -380,10 +380,68 @@ Prima di contattare il supporto, verifica:
 
 #### 💡 Soluzioni Rapide
 
-**Problema: "Permission denied"**
-- Vai su Synology → Pannello di Controllo → Cartella Condivisa
-- Clicca sulla cartella → Modifica → Permessi
-- Aggiungi il tuo utente con permessi di Lettura/Scrittura
+**Problema: "Permission denied" (mount error 13)**
+
+Questo è l'errore più comune. Segui questi step IN ORDINE:
+
+**Step 1: Verifica credenziali Synology**
+```bash
+# Testa login SSH sul Synology (se possibile)
+ssh Giacomo@192.168.178.29
+
+# Se funziona, le credenziali sono corrette
+```
+
+**Step 2: Verifica permessi cartella sul NAS**
+1. Apri DSM (interfaccia web Synology)
+2. Vai in **Pannello di Controllo** → **Cartella Condivisa**
+3. Trova la cartella "Video" (o come si chiama)
+4. Clicca **Modifica** → Tab **Permessi**
+5. Assicurati che l'utente "Giacomo" sia nella lista
+6. Imposta permessi **Lettura/Scrittura** (o almeno Lettura)
+7. Clicca **Salva**
+
+**Step 3: Verifica servizio SMB**
+1. **Pannello di Controllo** → **Servizi File** → **SMB/AFP/NFS**
+2. Tab **SMB**
+3. Spunta **Abilita servizio SMB**
+4. **Versione SMB massima**: SMB3
+5. **Versione SMB minima**: SMB2 (non SMB1!)
+6. Clicca **Applica**
+
+**Step 4: Verifica utente abilitato per SMB**
+1. **Pannello di Controllo** → **Utente & Gruppo**
+2. Seleziona utente "Giacomo"
+3. Clicca **Modifica**
+4. Tab **Applicazioni**
+5. Assicurati che "Deny access to all applications" NON sia spuntato
+6. Clicca **OK**
+
+**Step 5: Test manuale dal Raspberry Pi**
+```bash
+# Crea directory di test
+sudo mkdir -p /mnt/test
+
+# Crea file credenziali
+cat > /tmp/creds.txt <<EOF
+username=Giacomo
+password=TUA_PASSWORD_QUI
+EOF
+
+chmod 600 /tmp/creds.txt
+
+# Prova mount con file credenziali
+sudo mount -t cifs //192.168.178.29/Video /mnt/test -o credentials=/tmp/creds.txt,vers=3.0,sec=ntlmssp
+
+# Se funziona:
+ls /mnt/test  # Dovresti vedere i tuoi video
+
+# Pulisci
+sudo umount /mnt/test
+rm /tmp/creds.txt
+```
+
+Se il test manuale funziona, allora riprova dall'interfaccia web!
 
 **Problema: "Host is down"**
 - Verifica che il NAS non sia in ibernazione

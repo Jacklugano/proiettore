@@ -16,6 +16,8 @@ cat > /tmp/proiettore-sudoers <<EOF
 # Proiettore - Allow mount/umount without password
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/mount -t cifs * * -o *
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/mount -t cifs * * -o *
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/mount
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/mount
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/umount *
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/umount *
 EOF
