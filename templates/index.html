@@ -246,6 +246,35 @@
                                 <div id="network-test-result" class="mt-3" style="display: none;"></div>
                             </div>
                         </div>
+
+                        <!-- Synology NAS Help Card -->
+                        <div class="card mb-3 border-warning">
+                            <div class="card-header bg-warning text-white">
+                                <i class="bi bi-info-circle-fill"></i> Guida Synology NAS
+                            </div>
+                            <div class="card-body">
+                                <h6 class="fw-bold"><i class="bi bi-hdd-network-fill text-warning"></i> Configurazione NAS Synology:</h6>
+                                <ol class="mb-2" style="font-size: 0.9rem;">
+                                    <li><strong>Percorso Share:</strong> //INDIRIZZO-NAS/nome-cartella
+                                        <br><small class="text-muted">Es: //192.168.1.50/video oppure //synology-nas/multimedia</small>
+                                    </li>
+                                    <li class="mt-2"><strong>Username:</strong> Il tuo utente Synology con permessi sulla cartella</li>
+                                    <li class="mt-2"><strong>Password:</strong> Password dell'utente</li>
+                                </ol>
+                                <hr>
+                                <h6 class="fw-bold text-success"><i class="bi bi-check-circle-fill"></i> Prerequisiti Synology:</h6>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>Abilita <strong>SMB</strong> in: Pannello di Controllo → Servizi File → SMB</li>
+                                    <li>Versione SMB minima: <strong>SMB2</strong> o superiore</li>
+                                    <li>La cartella deve avere permessi di <strong>lettura</strong> per l'utente</li>
+                                    <li>Controlla che il firewall Synology permetta connessioni SMB</li>
+                                </ul>
+                                <div class="alert alert-info mt-2 mb-0">
+                                    <i class="bi bi-lightbulb-fill"></i>
+                                    <strong>Tip:</strong> Il sistema proverà automaticamente SMB 3.0 e 2.1 per massima compatibilità!
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Player Settings -->

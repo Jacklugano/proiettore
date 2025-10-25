@@ -64,7 +64,7 @@ class NetworkManager:
                 '-o'
             ]
 
-            # Build mount options
+            # Build mount options with Synology NAS compatibility
             options = []
             if self.username:
                 options.append(f'username={self.username}')
@@ -74,15 +74,22 @@ class NetworkManager:
             if self.password:
                 options.append(f'password={self.password}')
 
+            # Enhanced options for Synology NAS compatibility
             options.extend([
                 'iocharset=utf8',
                 'file_mode=0777',
-                'dir_mode=0777'
+                'dir_mode=0777',
+                'vers=3.0',  # SMB 3.0 for Synology compatibility
+                'sec=ntlmssp',  # NTLM authentication for Synology
+                'noperm',  # Don't check permissions on server
+                'rw',  # Read-write
+                'cache=loose'  # Better performance
             ])
 
             mount_cmd.append(','.join(options))
 
-            # Execute mount
+            # Execute mount with SMB 3.0
+            logger.info(f"Attempting to mount with SMB 3.0: {self.share_path}")
             result = subprocess.run(
                 mount_cmd,
                 capture_output=True,
@@ -93,8 +100,50 @@ class NetworkManager:
                 self.is_mounted = True
                 logger.info(f"Successfully mounted {self.share_path} to {self.mount_point}")
                 return True
+
+            # If SMB 3.0 fails, try SMB 2.1 (fallback for older Synology)
+            logger.warning(f"SMB 3.0 failed, trying SMB 2.1: {result.stderr}")
+
+            # Rebuild options with SMB 2.1
+            options_v2 = []
+            if self.username:
+                options_v2.append(f'username={self.username}')
             else:
-                logger.error(f"Failed to mount share: {result.stderr}")
+                options_v2.append('guest')
+
+            if self.password:
+                options_v2.append(f'password={self.password}')
+
+            options_v2.extend([
+                'iocharset=utf8',
+                'file_mode=0777',
+                'dir_mode=0777',
+                'vers=2.1',  # SMB 2.1 fallback
+                'sec=ntlmssp',
+                'noperm',
+                'rw'
+            ])
+
+            mount_cmd_v2 = [
+                'sudo', 'mount', '-t', 'cifs',
+                self.share_path,
+                self.mount_point,
+                '-o'
+            ]
+            mount_cmd_v2.append(','.join(options_v2))
+
+            result = subprocess.run(
+                mount_cmd_v2,
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode == 0:
+                self.is_mounted = True
+                logger.info(f"Successfully mounted with SMB 2.1: {self.share_path}")
+                return True
+            else:
+                logger.error(f"Failed to mount share with both SMB 3.0 and 2.1: {result.stderr}")
                 return False
 
         except Exception as e:
