@@ -132,8 +132,8 @@ class ProiettoreApp {
             document.getElementById('network-path').textContent =
                 network.share_path || 'Nessuna cartella configurata';
 
-            // Update video preview
-            this.updatePreview(player);
+            // Update playback progress and metadata
+            this.updatePlaybackProgress(player);
 
             // Update HDMI status if available
             if (data.hdmi) {
@@ -175,36 +175,65 @@ class ProiettoreApp {
         }
     }
 
-    updatePreview(playerStatus) {
-        const previewImg = document.getElementById('video-preview');
-        const placeholder = document.getElementById('preview-placeholder');
-        const videoName = document.getElementById('preview-video-name');
+    updatePlaybackProgress(playerStatus) {
+        const position = playerStatus.playback_position || 0;
+        const duration = playerStatus.playback_duration || 0;
+        const metadata = playerStatus.video_metadata || {};
 
-        if (playerStatus.is_playing && playerStatus.current_video) {
-            // Show video name
-            videoName.textContent = playerStatus.current_video.split('/').pop();
+        // Calculate progress percentage
+        const percent = duration > 0 ? (position / duration) * 100 : 0;
 
-            // Update preview image with cache-busting timestamp
-            const timestamp = new Date().getTime();
-            previewImg.src = `/api/preview?t=${timestamp}`;
+        // Update progress bar
+        const progressBar = document.getElementById('playback-progress');
+        const percentText = document.getElementById('playback-percent');
 
-            // Show image when loaded, hide placeholder
-            previewImg.onload = () => {
-                previewImg.classList.add('active');
-                placeholder.style.display = 'none';
-            };
+        if (progressBar) {
+            progressBar.style.width = `${percent.toFixed(1)}%`;
+            progressBar.setAttribute('aria-valuenow', percent.toFixed(1));
+        }
 
-            previewImg.onerror = () => {
-                // If image fails to load, show placeholder
-                previewImg.classList.remove('active');
-                placeholder.style.display = 'flex';
-            };
+        if (percentText) {
+            percentText.textContent = `${percent.toFixed(0)}%`;
+        }
+
+        // Update time display
+        document.getElementById('playback-time').textContent = this.formatTime(position);
+        document.getElementById('playback-duration').textContent = this.formatTime(duration);
+
+        // Update metadata
+        document.getElementById('meta-filename').textContent = metadata.filename || '-';
+        document.getElementById('meta-duration').textContent = duration > 0 ? this.formatTime(duration) : '-';
+        document.getElementById('meta-size').textContent = metadata.size ? this.formatFileSize(metadata.size) : '-';
+
+        const resolution = metadata.width && metadata.height
+            ? `${metadata.width}x${metadata.height}`
+            : '-';
+        document.getElementById('meta-resolution').textContent = resolution;
+
+        // Toggle playback/idle indicators
+        const playbackIndicator = document.getElementById('playback-indicator');
+        const idleIndicator = document.getElementById('idle-indicator');
+
+        if (playerStatus.is_playing) {
+            playbackIndicator.style.display = 'block';
+            idleIndicator.style.display = 'none';
         } else {
-            // No playback, show placeholder
-            previewImg.classList.remove('active');
-            previewImg.src = '';
-            placeholder.style.display = 'flex';
-            videoName.textContent = '-';
+            playbackIndicator.style.display = 'none';
+            idleIndicator.style.display = 'block';
+        }
+    }
+
+    formatTime(seconds) {
+        if (!seconds || seconds < 0) return '00:00';
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        if (hours > 0) {
+            return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        } else {
+            return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
     }
 

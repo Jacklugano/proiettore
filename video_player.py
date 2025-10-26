@@ -35,6 +35,12 @@ class VideoPlayer:
         self.monitor_thread: Optional[threading.Thread] = None
         self.monitor_stop_event = threading.Event()
 
+        # MPV IPC socket for playback progress
+        self.ipc_socket_path = '/tmp/mpv-socket'
+        self.playback_position = 0.0  # Current position in seconds
+        self.playback_duration = 0.0  # Total duration in seconds
+        self.video_metadata = {}  # Video metadata from ffprobe
+
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
 
@@ -71,6 +77,18 @@ class VideoPlayer:
             # Clear black screen to allow video to be visible
             self._clear_black_screen()
 
+            # Get video metadata before playing
+            self.video_metadata = self._get_video_metadata(video_path)
+            self.playback_duration = self.video_metadata.get('duration', 0.0)
+            self.playback_position = 0.0
+
+            # Remove old IPC socket if exists
+            if os.path.exists(self.ipc_socket_path):
+                try:
+                    os.remove(self.ipc_socket_path)
+                except:
+                    pass
+
             # MPV command for Raspberry Pi
             # Uses DRM for direct framebuffer access (bypasses X11/desktop)
             # This ensures video is displayed fullscreen without desktop visible
@@ -86,6 +104,7 @@ class VideoPlayer:
                 '--hwdec=auto',  # Hardware decode
                 '--drm-device=/dev/dri/card1',  # Use DRM card1 (where HDMI is connected)
                 '--drm-connector=HDMI-A-1',  # Use HDMI output
+                f'--input-ipc-server={self.ipc_socket_path}',  # IPC socket for progress
                 video_path
             ]
 
@@ -301,15 +320,109 @@ class VideoPlayer:
             logger.error(f"Error loading playlist from file: {e}")
             return []
 
+    def _get_video_metadata(self, video_path: str) -> dict:
+        """
+        Get video metadata using ffprobe
+
+        Args:
+            video_path: Path to video file
+
+        Returns:
+            Dictionary with duration, resolution, size, etc.
+        """
+        metadata = {
+            'duration': 0.0,
+            'width': 0,
+            'height': 0,
+            'size': 0,
+            'filename': os.path.basename(video_path)
+        }
+
+        try:
+            # Get file size
+            if os.path.exists(video_path):
+                metadata['size'] = os.path.getsize(video_path)
+
+            # Use ffprobe to get video metadata
+            cmd = [
+                '/usr/bin/ffprobe',
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                video_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+
+                # Get duration from format
+                if 'format' in data and 'duration' in data['format']:
+                    metadata['duration'] = float(data['format']['duration'])
+
+                # Get resolution from first video stream
+                if 'streams' in data:
+                    for stream in data['streams']:
+                        if stream.get('codec_type') == 'video':
+                            metadata['width'] = stream.get('width', 0)
+                            metadata['height'] = stream.get('height', 0)
+                            break
+
+            logger.debug(f"Video metadata: {metadata}")
+
+        except Exception as e:
+            logger.error(f"Error getting video metadata: {e}")
+
+        return metadata
+
+    def _update_playback_position(self):
+        """Update current playback position from MPV IPC socket"""
+        try:
+            import socket as sock
+
+            if not os.path.exists(self.ipc_socket_path):
+                return
+
+            # Connect to MPV IPC socket
+            client = sock.socket(sock.AF_UNIX, sock.SOCK_STREAM)
+            client.settimeout(0.5)
+            client.connect(self.ipc_socket_path)
+
+            # Request time-pos property
+            request = json.dumps({"command": ["get_property", "time-pos"]}) + '\n'
+            client.send(request.encode('utf-8'))
+
+            # Read response
+            response = client.recv(4096).decode('utf-8')
+            data = json.loads(response)
+
+            if 'data' in data and data['data'] is not None:
+                self.playback_position = float(data['data'])
+
+            client.close()
+
+        except Exception as e:
+            # Socket errors are expected if MPV not ready yet
+            pass
+
     def get_status(self) -> dict:
         """Get current player status"""
+        # Update playback position if playing
+        if self.is_playing:
+            self._update_playback_position()
+
         return {
             'is_playing': self.is_playing,
             'is_paused': self.is_paused,
             'current_video': self.current_video,
             'volume': self.volume,
             'playlist_length': len(self.playlist),
-            'current_index': self.current_index
+            'current_index': self.current_index,
+            'playback_position': self.playback_position,
+            'playback_duration': self.playback_duration,
+            'video_metadata': self.video_metadata
         }
 
     def get_cache_status(self) -> dict:
