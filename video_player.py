@@ -41,13 +41,14 @@ class VideoPlayer:
         # Set black screen on initialization
         self._set_black_screen()
 
-    def play(self, video_path: str, skip_hdmi_check: bool = False) -> bool:
+    def play(self, video_path: str, skip_hdmi_check: bool = False, from_monitor: bool = False) -> bool:
         """
         Play a video file
 
         Args:
             video_path: Path to the video file
             skip_hdmi_check: Skip HDMI connection check (for testing)
+            from_monitor: True if called from monitor thread (don't restart monitor)
 
         Returns:
             True if playback started successfully, False otherwise
@@ -99,7 +100,9 @@ class VideoPlayer:
             self.is_paused = False
 
             # Start monitor thread to auto-play next video when current finishes
-            self._start_monitor_thread()
+            # (unless called from monitor thread itself to avoid stopping itself)
+            if not from_monitor:
+                self._start_monitor_thread()
 
             # Save session after starting playback
             if self.auto_save_session:
@@ -226,13 +229,17 @@ class VideoPlayer:
             logger.error(f"Error loading playlist: {e}")
             return False
 
-    def play_next(self) -> bool:
-        """Play next video in playlist"""
+    def play_next(self, from_monitor: bool = False) -> bool:
+        """Play next video in playlist
+
+        Args:
+            from_monitor: True if called from monitor thread
+        """
         if not self.playlist:
             return False
 
         self.current_index = (self.current_index + 1) % len(self.playlist)
-        return self.play(self.playlist[self.current_index])
+        return self.play(self.playlist[self.current_index], from_monitor=from_monitor)
 
     def play_previous(self) -> bool:
         """Play previous video in playlist"""
@@ -386,15 +393,16 @@ class VideoPlayer:
                     if self.loop_playlist and self.playlist:
                         logger.info("Auto-playing next video in playlist...")
                         # Use play_next which handles looping with modulo
-                        self.play_next()
+                        # Pass from_monitor=True to avoid restarting this monitor thread
+                        self.play_next(from_monitor=True)
+                        # Don't break - continue monitoring the new process
+                        logger.debug("Continuing to monitor next video...")
                     else:
                         # No loop or no playlist, just stop
                         logger.info("Playback finished, no auto-play")
                         self.is_playing = False
                         self._set_black_screen()
-
-                    # Exit monitor loop
-                    break
+                        break
 
                 # Check every second
                 time.sleep(1)
