@@ -74,7 +74,8 @@ class VideoPlayer:
                 '--audio-device=auto',  # Auto select audio device
                 '--vo=drm',  # DRM video output - direct to framebuffer, bypasses X11
                 '--hwdec=auto',  # Hardware decode
-                '--drm-connector=HDMI-A-1',  # Use HDMI output (try HDMI-A-1 first)
+                '--drm-device=/dev/dri/card1',  # Use DRM card1 (where HDMI is connected)
+                '--drm-connector=HDMI-A-1',  # Use HDMI output
                 f'--input-ipc-server={MPV_SOCKET_PATH}',  # IPC for screenshot control
                 f'--screenshot-directory=/tmp',  # Screenshot directory
                 '--screenshot-template=proiettore_preview',  # Screenshot filename

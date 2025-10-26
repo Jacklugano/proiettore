@@ -74,6 +74,11 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 - 🎯 UX migliorata per configurazione iniziale
 
 ### Corretto
+- 🐛 **CRITICO: MPV usa DRM card sbagliata - RISOLTO**
+  - Aggiunto --drm-device=/dev/dri/card1 per specificare esplicitamente la scheda DRM corretta
+  - L'HDMI su Raspberry Pi 5 è collegato a card1-HDMI-A-1, non card0
+  - Senza questo parametro MPV usava card0 (senza HDMI) causando schermo vuoto
+  - Video ora viene effettivamente visualizzato sull'output HDMI
 - 🐛 **CRITICO: Video non va in fullscreen (si vede desktop) - RISOLTO CON DRM**
   - Cambiato video output da --vo=gpu a --vo=drm
   - DRM bypassa completamente X11/Wayland scrivendo direttamente al framebuffer
