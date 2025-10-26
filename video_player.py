@@ -4,9 +4,16 @@ Video player controller using MPV
 import subprocess
 import os
 import logging
+import threading
+import time
+import json
 from typing import Optional, List
 
 logger = logging.getLogger(__name__)
+
+# Path for preview screenshot
+PREVIEW_SCREENSHOT_PATH = '/tmp/proiettore_preview.jpg'
+MPV_SOCKET_PATH = '/tmp/mpv-socket-proiettore'
 
 
 class VideoPlayer:
@@ -20,6 +27,8 @@ class VideoPlayer:
         self.volume = volume
         self.is_playing = False
         self.is_paused = False
+        self.screenshot_thread: Optional[threading.Thread] = None
+        self.screenshot_stop_event = threading.Event()
 
     def play(self, video_path: str) -> bool:
         """
@@ -49,6 +58,10 @@ class VideoPlayer:
                 f'--volume={self.volume}',
                 '--audio-device=auto',  # Auto select audio device
                 '--vo=gpu',  # GPU video output (better for RPi5)
+                f'--input-ipc-server={MPV_SOCKET_PATH}',  # IPC for screenshot control
+                f'--screenshot-directory=/tmp',  # Screenshot directory
+                '--screenshot-template=proiettore_preview',  # Screenshot filename
+                '--screenshot-format=jpg',  # JPEG format for web
                 video_path
             ]
 
@@ -62,6 +75,9 @@ class VideoPlayer:
             self.is_playing = True
             self.is_paused = False
 
+            # Start screenshot capture thread
+            self._start_screenshot_thread()
+
             logger.info(f"Started playing: {video_path}")
             return True
 
@@ -72,6 +88,9 @@ class VideoPlayer:
     def stop(self) -> bool:
         """Stop current playback"""
         try:
+            # Stop screenshot thread
+            self._stop_screenshot_thread()
+
             if self.process:
                 self.process.terminate()
                 self.process.wait(timeout=5)
@@ -80,6 +99,13 @@ class VideoPlayer:
             self.current_video = None
             self.is_playing = False
             self.is_paused = False
+
+            # Clean up socket
+            if os.path.exists(MPV_SOCKET_PATH):
+                try:
+                    os.unlink(MPV_SOCKET_PATH)
+                except:
+                    pass
 
             logger.info("Playback stopped")
             return True
@@ -172,3 +198,49 @@ class VideoPlayer:
         if self.process:
             return self.process.poll() is None
         return False
+
+    def _start_screenshot_thread(self):
+        """Start background thread for capturing screenshots"""
+        self._stop_screenshot_thread()  # Stop any existing thread
+        self.screenshot_stop_event.clear()
+        self.screenshot_thread = threading.Thread(target=self._screenshot_loop, daemon=True)
+        self.screenshot_thread.start()
+        logger.info("Screenshot capture thread started")
+
+    def _stop_screenshot_thread(self):
+        """Stop screenshot capture thread"""
+        if self.screenshot_thread and self.screenshot_thread.is_alive():
+            self.screenshot_stop_event.set()
+            self.screenshot_thread.join(timeout=2)
+            logger.info("Screenshot capture thread stopped")
+
+    def _screenshot_loop(self):
+        """Background loop that captures screenshots periodically"""
+        # Wait a bit for MPV to start and create the socket
+        time.sleep(1)
+
+        while not self.screenshot_stop_event.is_set():
+            try:
+                if self.is_playing and os.path.exists(MPV_SOCKET_PATH):
+                    # Send screenshot command to MPV via IPC
+                    self._send_mpv_command('screenshot')
+                    logger.debug("Screenshot captured")
+            except Exception as e:
+                logger.error(f"Error capturing screenshot: {e}")
+
+            # Wait 3 seconds before next screenshot
+            self.screenshot_stop_event.wait(3)
+
+    def _send_mpv_command(self, command: str):
+        """Send command to MPV via IPC socket"""
+        try:
+            import socket
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(MPV_SOCKET_PATH)
+
+            # MPV IPC uses JSON commands
+            cmd = json.dumps({"command": [command]}) + "\n"
+            sock.sendall(cmd.encode('utf-8'))
+            sock.close()
+        except Exception as e:
+            logger.debug(f"Could not send command to MPV: {e}")

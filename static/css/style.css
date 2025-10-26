@@ -296,6 +296,41 @@ body {
     color: #7f8c8d;
 }
 
+/* Video Preview */
+.video-preview-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-preview-img {
+    width: 100%;
+    height: auto;
+    display: none;
+}
+
+.video-preview-img.active {
+    display: block;
+}
+
+.preview-placeholder {
+    text-align: center;
+    color: #6c757d;
+}
+
+.preview-info {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Schedule Items */
 .schedules-list {
     max-height: 400px;

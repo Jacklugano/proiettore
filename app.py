@@ -3,7 +3,7 @@ Main Flask application for Proiettore video player
 """
 import os
 import logging
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, send_file
 from config import Config
 from video_player import VideoPlayer
 from network_manager import NetworkManager
@@ -54,6 +54,19 @@ def api_status():
         'network': network.get_status(),
         'scheduler_running': scheduler.scheduler.running
     })
+
+
+@app.route('/api/preview')
+def api_preview():
+    """Get current playback screenshot preview"""
+    preview_path = '/tmp/proiettore_preview.jpg'
+
+    # Check if screenshot exists
+    if os.path.exists(preview_path):
+        return send_file(preview_path, mimetype='image/jpeg')
+    else:
+        # Return placeholder image or 404
+        return jsonify({'error': 'No preview available'}), 404
 
 
 @app.route('/api/videos')

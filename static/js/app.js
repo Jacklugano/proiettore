@@ -121,10 +121,46 @@ class ProiettoreApp {
             document.getElementById('network-path').textContent =
                 network.share_path || 'Nessuna cartella configurata';
 
+            // Update video preview
+            this.updatePreview(player);
+
         } catch (error) {
             console.error('Error updating status:', error);
             document.getElementById('status-indicator').innerHTML =
                 '<span class="badge bg-danger">Errore</span>';
+        }
+    }
+
+    updatePreview(playerStatus) {
+        const previewImg = document.getElementById('video-preview');
+        const placeholder = document.getElementById('preview-placeholder');
+        const videoName = document.getElementById('preview-video-name');
+
+        if (playerStatus.is_playing && playerStatus.current_video) {
+            // Show video name
+            videoName.textContent = playerStatus.current_video.split('/').pop();
+
+            // Update preview image with cache-busting timestamp
+            const timestamp = new Date().getTime();
+            previewImg.src = `/api/preview?t=${timestamp}`;
+
+            // Show image when loaded, hide placeholder
+            previewImg.onload = () => {
+                previewImg.classList.add('active');
+                placeholder.style.display = 'none';
+            };
+
+            previewImg.onerror = () => {
+                // If image fails to load, show placeholder
+                previewImg.classList.remove('active');
+                placeholder.style.display = 'flex';
+            };
+        } else {
+            // No playback, show placeholder
+            previewImg.classList.remove('active');
+            previewImg.src = '';
+            placeholder.style.display = 'flex';
+            videoName.textContent = '-';
         }
     }
 

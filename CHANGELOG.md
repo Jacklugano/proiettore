@@ -19,6 +19,13 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Carica in playlist solo i video selezionati
   - Se nessun video è selezionato, carica tutti (comportamento precedente)
 
+- ✨ **Anteprima live della riproduzione**
+  - Riquadro preview nella pagina Player che mostra screenshot del video in riproduzione
+  - Aggiornamento automatico ogni 3 secondi
+  - Mostra il nome del video corrente
+  - Permette di monitorare la riproduzione da remoto senza vedere l'HDMI
+  - Screenshot catturati tramite MPV IPC
+
 - ✨ **Interfaccia web completamente ridisegnata**
   - Design moderno con gradienti colorati
   - Animazioni smooth su tutti i componenti
