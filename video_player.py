@@ -6,6 +6,7 @@ import os
 import logging
 import time
 import threading
+import json
 from typing import Optional, List, Dict
 from hdmi_manager import HDMIManager
 from session_manager import SessionManager
@@ -215,6 +216,9 @@ class VideoPlayer:
             self.playlist = list(self.original_to_cache.values())
             self.current_index = 0
 
+            # Save playlist to file for persistence (use original paths)
+            self.save_playlist_to_file(existing_videos)
+
             logger.info(f"Playlist loaded with {len(self.playlist)} cached videos")
             return True
 
@@ -237,6 +241,58 @@ class VideoPlayer:
 
         self.current_index = (self.current_index - 1) % len(self.playlist)
         return self.play(self.playlist[self.current_index])
+
+    def save_playlist_to_file(self, video_paths: List[str]) -> bool:
+        """
+        Save playlist to JSON file for persistence
+
+        Args:
+            video_paths: List of original video paths (not cached paths)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            playlist_file = os.path.join(os.path.dirname(__file__), 'playlist.json')
+
+            with open(playlist_file, 'w') as f:
+                json.dump({
+                    'version': '1.0',
+                    'videos': video_paths
+                }, f, indent=2)
+
+            logger.info(f"Playlist saved to {playlist_file} ({len(video_paths)} videos)")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error saving playlist to file: {e}")
+            return False
+
+    def load_playlist_from_file(self) -> List[str]:
+        """
+        Load playlist from JSON file
+
+        Returns:
+            List of video paths, empty list if file doesn't exist or error occurs
+        """
+        try:
+            playlist_file = os.path.join(os.path.dirname(__file__), 'playlist.json')
+
+            if not os.path.exists(playlist_file):
+                logger.debug(f"Playlist file not found: {playlist_file}")
+                return []
+
+            with open(playlist_file, 'r') as f:
+                data = json.load(f)
+
+            videos = data.get('videos', [])
+            logger.info(f"Playlist loaded from file ({len(videos)} videos)")
+
+            return videos
+
+        except Exception as e:
+            logger.error(f"Error loading playlist from file: {e}")
+            return []
 
     def get_status(self) -> dict:
         """Get current player status"""

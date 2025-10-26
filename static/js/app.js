@@ -5,6 +5,7 @@ class ProiettoreApp {
         this.videos = [];
         this.selectedVideo = null;
         this.statusInterval = null;
+        this.currentPlaylist = [];
 
         this.init();
     }
@@ -22,6 +23,7 @@ class ProiettoreApp {
         this.loadVideos();
         this.loadSchedules();
         this.loadConfig();
+        this.loadSavedPlaylist();
     }
 
     bindEvents() {
@@ -69,6 +71,10 @@ class ProiettoreApp {
         document.getElementById('btn-select-all').addEventListener('click', () => this.selectAllVideos());
         document.getElementById('btn-deselect-all').addEventListener('click', () => this.deselectAllVideos());
 
+        // Playlist controls
+        document.getElementById('btn-save-playlist').addEventListener('click', () => this.savePlaylist());
+        document.getElementById('btn-clear-playlist').addEventListener('click', () => this.clearPlaylist());
+
         // Config volume slider
         const configVolumeSlider = document.getElementById('config-volume');
         configVolumeSlider.addEventListener('input', (e) => {
@@ -106,6 +112,11 @@ class ProiettoreApp {
 
             document.getElementById('playlist-info').textContent =
                 `${player.playlist_length} video${player.playlist_length !== 1 ? '' : ''} (${player.current_index + 1}/${player.playlist_length})`;
+
+            // Update playlist highlighting if playing
+            if (player.is_playing && this.currentPlaylist.length > 0) {
+                this.renderPlaylist(player.current_index);
+            }
 
             // Update network status
             const network = data.network;
@@ -391,6 +402,15 @@ class ProiettoreApp {
 
             const data = await response.json();
             if (data.success) {
+                // Update local playlist with video names
+                this.currentPlaylist = videoPaths.map(path => ({
+                    path: path,
+                    name: path.split('/').pop()
+                }));
+
+                // Render playlist in UI
+                this.renderPlaylist();
+
                 alert(`Playlist caricata con ${videoPaths.length} video`);
             } else {
                 alert(`Errore: ${data.error || 'Impossibile caricare playlist'}`);
@@ -399,6 +419,136 @@ class ProiettoreApp {
         } catch (error) {
             console.error('Error loading playlist:', error);
             alert('Errore di connessione durante il caricamento della playlist');
+        }
+    }
+
+    renderPlaylist(currentIndex = -1) {
+        const playlistContainer = document.getElementById('playlist-list');
+        const playlistCount = document.getElementById('playlist-count');
+
+        if (this.currentPlaylist.length === 0) {
+            playlistContainer.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="bi bi-list-stars" style="font-size: 2rem; opacity: 0.3;"></i>
+                    <p class="mt-2">Playlist vuota</p>
+                    <small>Seleziona e carica video dalla lista disponibili</small>
+                </div>
+            `;
+            playlistCount.textContent = '0 video';
+            return;
+        }
+
+        playlistCount.textContent = `${this.currentPlaylist.length} video`;
+
+        playlistContainer.innerHTML = this.currentPlaylist.map((video, index) => `
+            <div class="playlist-item ${index === currentIndex ? 'playing' : ''}" data-index="${index}">
+                <div class="playlist-index">${index + 1}</div>
+                <div class="playlist-name" title="${video.name}">${video.name}</div>
+                <button class="btn btn-sm btn-danger btn-remove" onclick="app.removeFromPlaylist(${index})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    async savePlaylist() {
+        if (this.currentPlaylist.length === 0) {
+            alert('Nessun video in playlist da salvare');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/playlist/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videos: this.currentPlaylist.map(v => v.path)
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert(`Playlist salvata con successo (${this.currentPlaylist.length} video)`);
+            } else {
+                alert('Errore nel salvare la playlist');
+            }
+
+        } catch (error) {
+            console.error('Error saving playlist:', error);
+            alert('Errore nel salvare la playlist');
+        }
+    }
+
+    async clearPlaylist() {
+        if (this.currentPlaylist.length === 0) {
+            return;
+        }
+
+        if (!confirm(`Vuoi davvero svuotare la playlist (${this.currentPlaylist.length} video)?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/playlist/clear', {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                this.currentPlaylist = [];
+                this.renderPlaylist();
+                alert('Playlist svuotata');
+            } else {
+                alert('Errore nello svuotare la playlist');
+            }
+
+        } catch (error) {
+            console.error('Error clearing playlist:', error);
+            alert('Errore nello svuotare la playlist');
+        }
+    }
+
+    async removeFromPlaylist(index) {
+        if (index < 0 || index >= this.currentPlaylist.length) {
+            return;
+        }
+
+        const video = this.currentPlaylist[index];
+        this.currentPlaylist.splice(index, 1);
+
+        // Update backend
+        try {
+            await fetch('/api/playlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videos: this.currentPlaylist.map(v => v.path)
+                })
+            });
+        } catch (error) {
+            console.error('Error updating playlist:', error);
+        }
+
+        // Update UI
+        this.renderPlaylist();
+    }
+
+    async loadSavedPlaylist() {
+        try {
+            const response = await fetch('/api/playlist/load');
+            const data = await response.json();
+
+            if (data.success && data.playlist && data.playlist.length > 0) {
+                this.currentPlaylist = data.playlist.map(path => ({
+                    path: path,
+                    name: path.split('/').pop()
+                }));
+
+                this.renderPlaylist();
+                console.log(`Playlist caricata: ${this.currentPlaylist.length} video`);
+            }
+        } catch (error) {
+            console.error('Error loading saved playlist:', error);
         }
     }
 

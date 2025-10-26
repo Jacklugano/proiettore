@@ -137,22 +137,22 @@
                     </div>
 
                     <!-- Middle Column - Video List -->
-                    <div class="col-md-8">
+                    <div class="col-md-4">
                         <div class="card mb-3">
                             <div class="card-header">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span><i class="bi bi-collection-play"></i> Video Disponibili</span>
                                     <span class="badge bg-info" id="video-count">0 video</span>
                                 </div>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap">
                                     <button class="btn btn-sm btn-outline-secondary" id="btn-select-all">
-                                        <i class="bi bi-check-square"></i> Seleziona Tutti
+                                        <i class="bi bi-check-square"></i> Tutti
                                     </button>
                                     <button class="btn btn-sm btn-outline-secondary" id="btn-deselect-all">
-                                        <i class="bi bi-square"></i> Deseleziona Tutti
+                                        <i class="bi bi-square"></i> Nessuno
                                     </button>
                                     <button class="btn btn-sm btn-primary ms-auto" id="btn-load-playlist">
-                                        <i class="bi bi-list-check"></i> Carica Playlist (<span id="selected-count">0</span>)
+                                        <i class="bi bi-list-check"></i> Carica (<span id="selected-count">0</span>)
                                     </button>
                                 </div>
                             </div>
@@ -162,6 +162,37 @@
                                         <i class="bi bi-film" style="font-size: 2rem;"></i>
                                         <p class="mt-2">Nessun video disponibile</p>
                                         <small>Configura la cartella di rete nelle Impostazioni</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Current Playlist -->
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-list-stars"></i> Playlist Corrente</span>
+                                    <span class="badge bg-light text-dark" id="playlist-count">0 video</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="playlist-controls p-2 bg-light border-bottom">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-sm btn-success" id="btn-save-playlist">
+                                            <i class="bi bi-save"></i> Salva Playlist
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" id="btn-clear-playlist">
+                                            <i class="bi bi-trash"></i> Svuota Playlist
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="playlist-list" id="playlist-list">
+                                    <div class="text-center p-4 text-muted">
+                                        <i class="bi bi-list-stars" style="font-size: 2rem; opacity: 0.3;"></i>
+                                        <p class="mt-2">Playlist vuota</p>
+                                        <small>Seleziona e carica video dalla lista disponibili</small>
                                     </div>
                                 </div>
                             </div>

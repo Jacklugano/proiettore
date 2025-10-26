@@ -46,6 +46,16 @@ def restore_session_on_startup():
         logger.info("Checking for saved session...")
         session_restored = player.restore_session()
 
+        # Load saved playlist if exists (regardless of session restore)
+        logger.info("Checking for saved playlist...")
+        saved_playlist = player.load_playlist_from_file()
+        if saved_playlist:
+            logger.info(f"Loading saved playlist with {len(saved_playlist)} videos...")
+            if player.load_playlist(saved_playlist):
+                logger.info("Saved playlist loaded successfully")
+            else:
+                logger.warning("Failed to load saved playlist")
+
         if session_restored:
             logger.info("Session restored successfully")
         else:
@@ -216,6 +226,33 @@ def api_next():
 def api_previous():
     """Play previous video"""
     success = player.play_previous()
+    return jsonify({'success': success})
+
+
+@app.route('/api/playlist/save', methods=['POST'])
+def api_playlist_save():
+    """Save current playlist to file"""
+    data = request.get_json()
+    videos = data.get('videos', [])
+
+    success = player.save_playlist_to_file(videos)
+    return jsonify({'success': success})
+
+
+@app.route('/api/playlist/load', methods=['GET'])
+def api_playlist_load():
+    """Load saved playlist from file"""
+    playlist = player.load_playlist_from_file()
+    return jsonify({'success': True, 'playlist': playlist})
+
+
+@app.route('/api/playlist/clear', methods=['POST'])
+def api_playlist_clear():
+    """Clear playlist"""
+    player.playlist = []
+    player.current_index = 0
+    player.original_to_cache = {}
+    success = player.save_playlist_to_file([])  # Save empty playlist
     return jsonify({'success': success})
 
 

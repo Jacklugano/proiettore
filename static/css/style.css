@@ -241,6 +241,76 @@ body {
     border-radius: 0 0 16px 16px;
 }
 
+/* Playlist List */
+.playlist-list {
+    max-height: 550px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 0 0 16px 16px;
+}
+
+.playlist-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ecef;
+    background: white;
+    margin: 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.playlist-item:hover {
+    background: linear-gradient(135deg, #0ba36015 0%, #3cba9215 100%);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(11, 163, 96, 0.15);
+}
+
+.playlist-item.playing {
+    background: var(--success-gradient);
+    color: white;
+    border-left: 5px solid #0ba360;
+    box-shadow: 0 4px 16px rgba(11, 163, 96, 0.3);
+}
+
+.playlist-item.playing .playlist-name,
+.playlist-item.playing .playlist-index {
+    color: white;
+}
+
+.playlist-item .playlist-index {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #667eea;
+    min-width: 30px;
+    text-align: center;
+}
+
+.playlist-item.playing .playlist-index {
+    color: white;
+}
+
+.playlist-item .playlist-name {
+    flex: 1;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-item .btn-remove {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.playlist-item:hover .btn-remove {
+    opacity: 1;
+}
+
 .video-item {
     padding: 16px 20px;
     border-bottom: 1px solid #e9ecef;
@@ -439,17 +509,20 @@ body {
 
 /* Scrollbar Styling */
 .video-list::-webkit-scrollbar,
+.playlist-list::-webkit-scrollbar,
 .schedules-list::-webkit-scrollbar {
     width: 10px;
 }
 
 .video-list::-webkit-scrollbar-track,
+.playlist-list::-webkit-scrollbar-track,
 .schedules-list::-webkit-scrollbar-track {
     background: #f1f3f5;
     border-radius: 10px;
 }
 
 .video-list::-webkit-scrollbar-thumb,
+.playlist-list::-webkit-scrollbar-thumb,
 .schedules-list::-webkit-scrollbar-thumb {
     background: var(--primary-gradient);
     border-radius: 10px;
@@ -457,9 +530,9 @@ body {
 }
 
 .video-list::-webkit-scrollbar-thumb:hover,
+.playlist-list::-webkit-scrollbar-thumb:hover,
 .schedules-list::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #6539
-8d 100%);
+    background: linear-gradient(135deg, #5568d3 0%, #65398d 100%);
 }
 
 /* Info Card */
