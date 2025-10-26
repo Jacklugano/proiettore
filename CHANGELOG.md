@@ -74,6 +74,12 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 - 🎯 UX migliorata per configurazione iniziale
 
 ### Corretto
+- 🐛 **CRITICO: Video non va in fullscreen (si vede desktop)**
+  - Aggiunte opzioni MPV per forzare finestra sopra tutto: --ontop, --no-border
+  - Nascosto cursore automaticamente con --cursor-autohide=always
+  - Forzato schermo primario con --screen=0 e --fs-screen=0
+  - Abilitata decodifica hardware con --hwdec=auto
+  - Ora il video copre completamente lo schermo nascondendo il desktop
 - 🐛 **CRITICO: Permission denied con Synology NAS risolto!**
   - Rimossa opzione `sec=ntlmssp` che causava errore di autenticazione con Synology DSM
   - SMB ora auto-negozia il metodo di sicurezza ottimale (funziona con Synology, QNAP, Windows Server)

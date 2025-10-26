@@ -67,11 +67,17 @@ class VideoPlayer:
             cmd = [
                 '/usr/bin/mpv',
                 '--fs',  # Fullscreen
+                '--ontop',  # Keep window on top of everything
+                '--no-border',  # Remove window border
                 '--no-osc',  # No on-screen controller
                 '--no-input-default-bindings',  # Disable keyboard controls
+                '--cursor-autohide=always',  # Hide mouse cursor
+                '--screen=0',  # Use primary screen
+                '--fs-screen=0',  # Fullscreen on primary screen
                 f'--volume={self.volume}',
                 '--audio-device=auto',  # Auto select audio device
                 '--vo=gpu',  # GPU video output (better for RPi5)
+                '--hwdec=auto',  # Hardware decode
                 f'--input-ipc-server={MPV_SOCKET_PATH}',  # IPC for screenshot control
                 f'--screenshot-directory=/tmp',  # Screenshot directory
                 '--screenshot-template=proiettore_preview',  # Screenshot filename
