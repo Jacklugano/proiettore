@@ -68,6 +68,12 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Verifica stato e rollback se necessario
 
 ### Migliorato
+- ⚡ **Avvio automatico player implementato**
+  - L'opzione "Avvio Automatico" nelle Impostazioni ora è completamente funzionale
+  - Se abilitata, carica automaticamente tutti i video disponibili all'avvio del servizio
+  - Inizia la riproduzione automaticamente senza intervento manuale
+  - Si integra con il ripristino sessione: se esiste una sessione salvata ha priorità
+  - Utile per installazioni kiosk/digital signage che devono partire automaticamente
 - 🎨 Interfaccia utente con palette colori moderna
 - 🚀 Performance di mount cartelle di rete
 - 📊 Visualizzazione stato player in tempo reale

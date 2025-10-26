@@ -41,15 +41,43 @@ def scheduled_play(video_path: str):
 
 # Restore session on startup
 def restore_session_on_startup():
-    """Restore saved playback session if exists"""
+    """Restore saved playback session if exists, or autoplay if configured"""
     try:
         logger.info("Checking for saved session...")
-        if player.restore_session():
+        session_restored = player.restore_session()
+
+        if session_restored:
             logger.info("Session restored successfully")
         else:
             logger.info("No session to restore or restore failed")
+
+            # Check if autoplay on startup is enabled
+            player_config = config_manager.get_player_config()
+            if player_config.get('auto_start', False):
+                logger.info("Auto-start enabled, loading all videos and starting playback...")
+
+                # Get all available videos
+                videos = network.get_video_files()
+
+                if videos:
+                    # Load playlist with all videos
+                    if player.load_playlist(videos):
+                        logger.info(f"Loaded {len(videos)} videos for autoplay")
+
+                        # Start playback with first video
+                        if player.play(videos[0]):
+                            logger.info("Autoplay started successfully")
+                        else:
+                            logger.warning("Failed to start autoplay")
+                    else:
+                        logger.warning("Failed to load playlist for autoplay")
+                else:
+                    logger.warning("No videos found for autoplay")
+            else:
+                logger.info("Auto-start disabled, no action taken")
+
     except Exception as e:
-        logger.error(f"Error during session restore: {e}")
+        logger.error(f"Error during session restore/autoplay: {e}")
 
 
 # Call session restore after a short delay (let Flask finish initialization)
