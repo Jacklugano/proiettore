@@ -368,16 +368,11 @@ class ProiettoreApp {
             return;
         }
 
-        // Get selected videos, or all videos if none selected
+        // Get ONLY selected videos
         let videoPaths = this.getSelectedVideos();
 
         if (videoPaths.length === 0) {
-            // No videos selected, use all videos
-            videoPaths = this.videos.map(v => v.path);
-        }
-
-        if (videoPaths.length === 0) {
-            alert('Nessun video da caricare');
+            alert('Seleziona almeno un video da caricare in playlist');
             return;
         }
 

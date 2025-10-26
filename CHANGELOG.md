@@ -16,8 +16,9 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Checkbox per ogni video nella lista
   - Pulsanti "Seleziona Tutti" / "Deseleziona Tutti"
   - Contatore video selezionati in tempo reale
-  - Carica in playlist solo i video selezionati
-  - Se nessun video è selezionato, carica tutti (comportamento precedente)
+  - Carica in playlist SOLO i video selezionati
+  - Se nessun video selezionato, mostra errore invece di caricare tutti
+  - Controllo esplicito: devi selezionare almeno un video
 
 - ✨ **Cache locale video per riproduzione senza latenza**
   - Quando si carica una playlist, tutti i video vengono copiati in cache locale (`/tmp/video_cache/`)
@@ -105,6 +106,12 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 - 🎯 UX migliorata per configurazione iniziale
 
 ### Corretto
+- 🐛 **Cache caricava tutti i video invece che solo quelli selezionati - RISOLTO**
+  - Rimosso fallback che caricava tutti i video quando nessuno era selezionato
+  - Ora richiede selezione esplicita di almeno un video
+  - Se non selezioni nulla, mostra errore: "Seleziona almeno un video da caricare in playlist"
+  - La cache ora contiene SOLO i video selezionati dall'utente
+  - Fix in static/js/app.js: loadPlaylist()
 - 🐛 **CRITICO: MPV usa DRM card sbagliata - RISOLTO**
   - Aggiunto --drm-device=/dev/dri/card1 per specificare esplicitamente la scheda DRM corretta
   - L'HDMI su Raspberry Pi 5 è collegato a card1-HDMI-A-1, non card0
