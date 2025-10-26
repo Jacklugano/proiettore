@@ -42,6 +42,7 @@ class VideoPlayer:
         self.video_metadata = {}  # Video metadata from ffprobe
         self.last_position_update = 0.0  # Track last position for watchdog
         self.position_stuck_count = 0  # Count how many times position hasn't changed
+        self.video_start_time = 0.0  # When current video started playing
 
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
@@ -87,6 +88,7 @@ class VideoPlayer:
             # Reset watchdog counters for new video
             self.last_position_update = 0.0
             self.position_stuck_count = 0
+            self.video_start_time = time.time()
 
             # Remove old IPC socket if exists
             if os.path.exists(self.ipc_socket_path):
@@ -493,7 +495,8 @@ class VideoPlayer:
     def _monitor_loop(self):
         """Background loop that monitors MPV process and auto-plays next video"""
         try:
-            stuck_threshold = 5  # If position doesn't change for 5 seconds, consider stuck
+            stuck_threshold = 3  # If position doesn't change for 3 seconds, consider stuck
+            timeout_buffer = 10  # Max 10 seconds over duration before force skip
 
             while not self.monitor_stop_event.is_set():
                 # Check if process is still running
@@ -534,7 +537,64 @@ class VideoPlayer:
                     # Update position from MPV
                     self._update_playback_position()
 
-                    # Check if position has changed
+                    video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
+
+                    # WATCHDOG 1: Check if position reached or exceeded duration
+                    if self.playback_duration > 0 and self.playback_position >= (self.playback_duration - 1):
+                        logger.warning(f"Video position ({self.playback_position:.1f}s) >= duration ({self.playback_duration:.1f}s): {video_name}")
+                        logger.warning(f"Force-skipping (video should have ended)")
+
+                        # Kill process
+                        if self.process:
+                            try:
+                                self.process.terminate()
+                                self.process.wait(timeout=2)
+                            except:
+                                self.process.kill()
+
+                        # Reset counters
+                        self.position_stuck_count = 0
+                        self.last_position_update = 0.0
+
+                        # Skip to next video
+                        if self.loop_playlist and self.playlist:
+                            logger.info("Auto-playing next video after duration exceeded...")
+                            self.play_next(from_monitor=True)
+                        else:
+                            self.is_playing = False
+                            self._set_black_screen()
+                            break
+                        continue
+
+                    # WATCHDOG 2: Check if total elapsed time exceeds duration + buffer
+                    elapsed_time = time.time() - self.video_start_time
+                    if self.playback_duration > 0 and elapsed_time > (self.playback_duration + timeout_buffer):
+                        logger.warning(f"Elapsed time ({elapsed_time:.1f}s) > duration+buffer ({self.playback_duration + timeout_buffer:.1f}s): {video_name}")
+                        logger.warning(f"Force-skipping (absolute timeout)")
+
+                        # Kill process
+                        if self.process:
+                            try:
+                                self.process.terminate()
+                                self.process.wait(timeout=2)
+                            except:
+                                self.process.kill()
+
+                        # Reset counters
+                        self.position_stuck_count = 0
+                        self.last_position_update = 0.0
+
+                        # Skip to next video
+                        if self.loop_playlist and self.playlist:
+                            logger.info("Auto-playing next video after timeout...")
+                            self.play_next(from_monitor=True)
+                        else:
+                            self.is_playing = False
+                            self._set_black_screen()
+                            break
+                        continue
+
+                    # WATCHDOG 3: Check if position has changed
                     if abs(self.playback_position - self.last_position_update) < 0.5:
                         # Position hasn't changed significantly
                         self.position_stuck_count += 1
@@ -545,10 +605,8 @@ class VideoPlayer:
                             if self.playback_duration > 0:
                                 percent = (self.playback_position / self.playback_duration) * 100
 
-                            video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
-
-                            # If stuck at >95%, assume video is at end but MPV not terminating
-                            if percent > 95:
+                            # If stuck at >90%, assume video is at end but MPV not terminating
+                            if percent > 90:
                                 logger.warning(f"Video stuck at {percent:.1f}% for {stuck_threshold}s: {video_name}")
                                 logger.warning(f"Force-skipping to next video (MPV may be frozen)")
 
