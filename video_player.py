@@ -62,22 +62,19 @@ class VideoPlayer:
             self.stop()
 
             # MPV command for Raspberry Pi
-            # Uses HDMI for video and auto for audio (will use default audio output)
+            # Uses DRM for direct framebuffer access (bypasses X11/desktop)
+            # This ensures video is displayed fullscreen without desktop visible
             # Use full path for systemd compatibility
             cmd = [
                 '/usr/bin/mpv',
                 '--fs',  # Fullscreen
-                '--ontop',  # Keep window on top of everything
-                '--no-border',  # Remove window border
                 '--no-osc',  # No on-screen controller
                 '--no-input-default-bindings',  # Disable keyboard controls
-                '--cursor-autohide=always',  # Hide mouse cursor
-                '--screen=0',  # Use primary screen
-                '--fs-screen=0',  # Fullscreen on primary screen
                 f'--volume={self.volume}',
                 '--audio-device=auto',  # Auto select audio device
-                '--vo=gpu',  # GPU video output (better for RPi5)
+                '--vo=drm',  # DRM video output - direct to framebuffer, bypasses X11
                 '--hwdec=auto',  # Hardware decode
+                '--drm-connector=HDMI-A-1',  # Use HDMI output (try HDMI-A-1 first)
                 f'--input-ipc-server={MPV_SOCKET_PATH}',  # IPC for screenshot control
                 f'--screenshot-directory=/tmp',  # Screenshot directory
                 '--screenshot-template=proiettore_preview',  # Screenshot filename
