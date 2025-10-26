@@ -4,18 +4,12 @@ Video player controller using MPV
 import subprocess
 import os
 import logging
-import threading
 import time
-import json
 from typing import Optional, List
 from hdmi_manager import HDMIManager
 from session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
-
-# Path for preview screenshot
-PREVIEW_SCREENSHOT_PATH = '/tmp/proiettore_preview.jpg'
-MPV_SOCKET_PATH = '/tmp/mpv-socket-proiettore'
 
 
 class VideoPlayer:
@@ -29,8 +23,6 @@ class VideoPlayer:
         self.volume = volume
         self.is_playing = False
         self.is_paused = False
-        self.screenshot_thread: Optional[threading.Thread] = None
-        self.screenshot_stop_event = threading.Event()
         self.hdmi_manager = HDMIManager()
         self.session_manager = SessionManager()
         self.auto_save_session = True  # Auto-save session on changes
@@ -95,9 +87,6 @@ class VideoPlayer:
             self.is_playing = True
             self.is_paused = False
 
-            # Start screenshot capture thread
-            self._start_screenshot_thread()
-
             # Save session after starting playback
             if self.auto_save_session:
                 self._save_current_session()
@@ -112,9 +101,6 @@ class VideoPlayer:
     def stop(self) -> bool:
         """Stop current playback"""
         try:
-            # Stop screenshot thread
-            self._stop_screenshot_thread()
-
             if self.process:
                 self.process.terminate()
                 self.process.wait(timeout=5)
@@ -123,13 +109,6 @@ class VideoPlayer:
             self.current_video = None
             self.is_playing = False
             self.is_paused = False
-
-            # Clean up socket
-            if os.path.exists(MPV_SOCKET_PATH):
-                try:
-                    os.unlink(MPV_SOCKET_PATH)
-                except:
-                    pass
 
             # Set black screen after stopping playback
             self._set_black_screen()
@@ -236,55 +215,6 @@ class VideoPlayer:
         if self.process:
             return self.process.poll() is None
         return False
-
-    def _start_screenshot_thread(self):
-        """Start background thread for capturing screenshots"""
-        self._stop_screenshot_thread()  # Stop any existing thread
-        self.screenshot_stop_event.clear()
-        self.screenshot_thread = threading.Thread(target=self._screenshot_loop, daemon=True)
-        self.screenshot_thread.start()
-        logger.info("Screenshot capture thread started")
-
-    def _stop_screenshot_thread(self):
-        """Stop screenshot capture thread"""
-        if self.screenshot_thread and self.screenshot_thread.is_alive():
-            self.screenshot_stop_event.set()
-            self.screenshot_thread.join(timeout=2)
-            logger.info("Screenshot capture thread stopped")
-
-    def _screenshot_loop(self):
-        """Background loop that captures framebuffer screenshots periodically"""
-        # Wait a bit for MPV to start rendering
-        time.sleep(2)
-
-        while not self.screenshot_stop_event.is_set():
-            try:
-                if self.is_playing:
-                    # Capture framebuffer using ffmpeg
-                    # This captures the actual screen output, including DRM video
-                    subprocess.run([
-                        '/usr/bin/ffmpeg',  # Use absolute path for systemd compatibility
-                        '-f', 'fbdev',  # Framebuffer device input
-                        '-i', '/dev/fb0',  # Input from framebuffer 0
-                        '-vframes', '1',  # Capture 1 frame
-                        '-s', '640x480',  # Resize for web (smaller file)
-                        '-q:v', '5',  # JPEG quality (2-31, lower is better)
-                        '-y',  # Overwrite output file
-                        PREVIEW_SCREENSHOT_PATH
-                    ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=2,
-                    check=False
-                    )
-                    logger.debug("Framebuffer screenshot captured")
-            except subprocess.TimeoutExpired:
-                logger.warning("Screenshot capture timeout")
-            except Exception as e:
-                logger.error(f"Error capturing framebuffer screenshot: {e}")
-
-            # Wait 3 seconds before next screenshot
-            self.screenshot_stop_event.wait(3)
 
     def _set_black_screen(self):
         """Set black screen on TTY (hide console, show black)"""
