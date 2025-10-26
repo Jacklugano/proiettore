@@ -260,7 +260,7 @@ class VideoPlayer:
                     # Capture framebuffer using ffmpeg
                     # This captures the actual screen output, including DRM video
                     subprocess.run([
-                        'ffmpeg',
+                        '/usr/bin/ffmpeg',  # Use absolute path for systemd compatibility
                         '-f', 'fbdev',  # Framebuffer device input
                         '-i', '/dev/fb0',  # Input from framebuffer 0
                         '-vframes', '1',  # Capture 1 frame
