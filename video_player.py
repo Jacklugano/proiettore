@@ -314,8 +314,17 @@ class VideoPlayer:
             while not self.monitor_stop_event.is_set():
                 # Check if process is still running
                 if self.process and self.process.poll() is not None:
-                    # Process has finished
-                    logger.info(f"Video finished: {os.path.basename(self.current_video) if self.current_video else 'unknown'}")
+                    # Process has finished, check exit code
+                    exit_code = self.process.returncode
+                    video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
+
+                    if exit_code == 0:
+                        # Normal termination (video finished successfully)
+                        logger.info(f"Video finished successfully: {video_name}")
+                    else:
+                        # Error termination (video playback error)
+                        logger.error(f"Video playback error (exit code {exit_code}): {video_name}")
+                        logger.warning(f"Skipping to next video due to playback error")
 
                     # Only auto-play next if loop is enabled and there's a playlist
                     if self.loop_playlist and self.playlist:
