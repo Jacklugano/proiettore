@@ -40,6 +40,8 @@ class VideoPlayer:
         self.playback_position = 0.0  # Current position in seconds
         self.playback_duration = 0.0  # Total duration in seconds
         self.video_metadata = {}  # Video metadata from ffprobe
+        self.last_position_update = 0.0  # Track last position for watchdog
+        self.position_stuck_count = 0  # Count how many times position hasn't changed
 
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
@@ -81,6 +83,10 @@ class VideoPlayer:
             self.video_metadata = self._get_video_metadata(video_path)
             self.playback_duration = self.video_metadata.get('duration', 0.0)
             self.playback_position = 0.0
+
+            # Reset watchdog counters for new video
+            self.last_position_update = 0.0
+            self.position_stuck_count = 0
 
             # Remove old IPC socket if exists
             if os.path.exists(self.ipc_socket_path):
@@ -487,6 +493,8 @@ class VideoPlayer:
     def _monitor_loop(self):
         """Background loop that monitors MPV process and auto-plays next video"""
         try:
+            stuck_threshold = 5  # If position doesn't change for 5 seconds, consider stuck
+
             while not self.monitor_stop_event.is_set():
                 # Check if process is still running
                 if self.process and self.process.poll() is not None:
@@ -502,6 +510,10 @@ class VideoPlayer:
                         logger.error(f"Video playback error (exit code {exit_code}): {video_name}")
                         logger.warning(f"Skipping to next video due to playback error")
 
+                    # Reset stuck counter
+                    self.position_stuck_count = 0
+                    self.last_position_update = 0.0
+
                     # Only auto-play next if loop is enabled and there's a playlist
                     if self.loop_playlist and self.playlist:
                         logger.info("Auto-playing next video in playlist...")
@@ -516,6 +528,57 @@ class VideoPlayer:
                         self.is_playing = False
                         self._set_black_screen()
                         break
+
+                # Watchdog: Check if video is stuck (position not changing)
+                elif self.process and self.is_playing:
+                    # Update position from MPV
+                    self._update_playback_position()
+
+                    # Check if position has changed
+                    if abs(self.playback_position - self.last_position_update) < 0.5:
+                        # Position hasn't changed significantly
+                        self.position_stuck_count += 1
+
+                        # If stuck for threshold seconds AND close to end, force skip
+                        if self.position_stuck_count >= stuck_threshold:
+                            percent = 0
+                            if self.playback_duration > 0:
+                                percent = (self.playback_position / self.playback_duration) * 100
+
+                            video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
+
+                            # If stuck at >95%, assume video is at end but MPV not terminating
+                            if percent > 95:
+                                logger.warning(f"Video stuck at {percent:.1f}% for {stuck_threshold}s: {video_name}")
+                                logger.warning(f"Force-skipping to next video (MPV may be frozen)")
+
+                                # Kill stuck process
+                                if self.process:
+                                    try:
+                                        self.process.terminate()
+                                        self.process.wait(timeout=2)
+                                    except:
+                                        self.process.kill()
+
+                                # Reset counters
+                                self.position_stuck_count = 0
+                                self.last_position_update = 0.0
+
+                                # Skip to next video if looping
+                                if self.loop_playlist and self.playlist:
+                                    logger.info("Auto-playing next video after force-skip...")
+                                    self.play_next(from_monitor=True)
+                                else:
+                                    self.is_playing = False
+                                    self._set_black_screen()
+                                    break
+                            else:
+                                # Stuck but not at end - just log it
+                                logger.debug(f"Video stuck at {percent:.1f}% for {self.position_stuck_count}s")
+                    else:
+                        # Position changed, reset counter
+                        self.position_stuck_count = 0
+                        self.last_position_update = self.playback_position
 
                 # Check every second
                 time.sleep(1)
