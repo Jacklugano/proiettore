@@ -495,31 +495,70 @@ class VideoPlayer:
     def _monitor_loop(self):
         """Background loop that monitors MPV process and auto-plays next video"""
         try:
-            stuck_threshold = 3  # If position doesn't change for 3 seconds, consider stuck
-            timeout_buffer = 10  # Max 10 seconds over duration before force skip
+            timeout_buffer = 5  # Max 5 seconds over duration before force skip
 
             while not self.monitor_stop_event.is_set():
-                # Check if process is still running
+                video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
+
+                # ⏰ PRIORITY 1: ABSOLUTE TIMEOUT CHECK (most reliable, checked FIRST)
+                if self.process and self.is_playing and self.playback_duration > 0:
+                    elapsed_time = time.time() - self.video_start_time
+                    max_allowed_time = self.playback_duration + timeout_buffer
+
+                    if elapsed_time > max_allowed_time:
+                        logger.warning(f"⏰ TIMEOUT! Video exceeded max allowed time")
+                        logger.warning(f"   Video: {video_name}")
+                        logger.warning(f"   Duration: {self.playback_duration:.1f}s")
+                        logger.warning(f"   Elapsed: {elapsed_time:.1f}s")
+                        logger.warning(f"   Max allowed: {max_allowed_time:.1f}s")
+                        logger.warning(f"   Exceeded by: {elapsed_time - max_allowed_time:.1f}s")
+
+                        # Kill process immediately
+                        if self.process:
+                            try:
+                                logger.info("Terminating MPV process...")
+                                self.process.terminate()
+                                time.sleep(0.5)
+                                if self.process.poll() is None:
+                                    logger.info("Process still alive, killing...")
+                                    self.process.kill()
+                            except Exception as e:
+                                logger.error(f"Error killing process: {e}")
+
+                        # Reset counters
+                        self.position_stuck_count = 0
+                        self.last_position_update = 0.0
+
+                        # Skip to next video
+                        if self.loop_playlist and self.playlist:
+                            logger.info("▶️  Skipping to next video after timeout...")
+                            self.play_next(from_monitor=True)
+                            continue
+                        else:
+                            self.is_playing = False
+                            self._set_black_screen()
+                            break
+
+                # 🎬 PRIORITY 2: Check if process has finished normally
                 if self.process and self.process.poll() is not None:
                     # Process has finished, check exit code
                     exit_code = self.process.returncode
-                    video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
 
                     if exit_code == 0:
                         # Normal termination (video finished successfully)
-                        logger.info(f"Video finished successfully: {video_name}")
+                        logger.info(f"✅ Video finished successfully: {video_name}")
                     else:
                         # Error termination (video playback error)
-                        logger.error(f"Video playback error (exit code {exit_code}): {video_name}")
+                        logger.error(f"❌ Video playback error (exit code {exit_code}): {video_name}")
                         logger.warning(f"Skipping to next video due to playback error")
 
-                    # Reset stuck counter
+                    # Reset counters
                     self.position_stuck_count = 0
                     self.last_position_update = 0.0
 
                     # Only auto-play next if loop is enabled and there's a playlist
                     if self.loop_playlist and self.playlist:
-                        logger.info("Auto-playing next video in playlist...")
+                        logger.info("▶️  Auto-playing next video in playlist...")
                         # Use play_next which handles looping with modulo
                         # Pass from_monitor=True to avoid restarting this monitor thread
                         self.play_next(from_monitor=True)
@@ -532,113 +571,11 @@ class VideoPlayer:
                         self._set_black_screen()
                         break
 
-                # Watchdog: Check if video is stuck (position not changing)
+                # 📊 PRIORITY 3: Update position for status display
                 elif self.process and self.is_playing:
-                    # Update position from MPV
                     self._update_playback_position()
 
-                    video_name = os.path.basename(self.current_video) if self.current_video else 'unknown'
-
-                    # WATCHDOG 1: Check if position reached or exceeded duration
-                    if self.playback_duration > 0 and self.playback_position >= (self.playback_duration - 1):
-                        logger.warning(f"Video position ({self.playback_position:.1f}s) >= duration ({self.playback_duration:.1f}s): {video_name}")
-                        logger.warning(f"Force-skipping (video should have ended)")
-
-                        # Kill process
-                        if self.process:
-                            try:
-                                self.process.terminate()
-                                self.process.wait(timeout=2)
-                            except:
-                                self.process.kill()
-
-                        # Reset counters
-                        self.position_stuck_count = 0
-                        self.last_position_update = 0.0
-
-                        # Skip to next video
-                        if self.loop_playlist and self.playlist:
-                            logger.info("Auto-playing next video after duration exceeded...")
-                            self.play_next(from_monitor=True)
-                        else:
-                            self.is_playing = False
-                            self._set_black_screen()
-                            break
-                        continue
-
-                    # WATCHDOG 2: Check if total elapsed time exceeds duration + buffer
-                    elapsed_time = time.time() - self.video_start_time
-                    if self.playback_duration > 0 and elapsed_time > (self.playback_duration + timeout_buffer):
-                        logger.warning(f"Elapsed time ({elapsed_time:.1f}s) > duration+buffer ({self.playback_duration + timeout_buffer:.1f}s): {video_name}")
-                        logger.warning(f"Force-skipping (absolute timeout)")
-
-                        # Kill process
-                        if self.process:
-                            try:
-                                self.process.terminate()
-                                self.process.wait(timeout=2)
-                            except:
-                                self.process.kill()
-
-                        # Reset counters
-                        self.position_stuck_count = 0
-                        self.last_position_update = 0.0
-
-                        # Skip to next video
-                        if self.loop_playlist and self.playlist:
-                            logger.info("Auto-playing next video after timeout...")
-                            self.play_next(from_monitor=True)
-                        else:
-                            self.is_playing = False
-                            self._set_black_screen()
-                            break
-                        continue
-
-                    # WATCHDOG 3: Check if position has changed
-                    if abs(self.playback_position - self.last_position_update) < 0.5:
-                        # Position hasn't changed significantly
-                        self.position_stuck_count += 1
-
-                        # If stuck for threshold seconds AND close to end, force skip
-                        if self.position_stuck_count >= stuck_threshold:
-                            percent = 0
-                            if self.playback_duration > 0:
-                                percent = (self.playback_position / self.playback_duration) * 100
-
-                            # If stuck at >90%, assume video is at end but MPV not terminating
-                            if percent > 90:
-                                logger.warning(f"Video stuck at {percent:.1f}% for {stuck_threshold}s: {video_name}")
-                                logger.warning(f"Force-skipping to next video (MPV may be frozen)")
-
-                                # Kill stuck process
-                                if self.process:
-                                    try:
-                                        self.process.terminate()
-                                        self.process.wait(timeout=2)
-                                    except:
-                                        self.process.kill()
-
-                                # Reset counters
-                                self.position_stuck_count = 0
-                                self.last_position_update = 0.0
-
-                                # Skip to next video if looping
-                                if self.loop_playlist and self.playlist:
-                                    logger.info("Auto-playing next video after force-skip...")
-                                    self.play_next(from_monitor=True)
-                                else:
-                                    self.is_playing = False
-                                    self._set_black_screen()
-                                    break
-                            else:
-                                # Stuck but not at end - just log it
-                                logger.debug(f"Video stuck at {percent:.1f}% for {self.position_stuck_count}s")
-                    else:
-                        # Position changed, reset counter
-                        self.position_stuck_count = 0
-                        self.last_position_update = self.playback_position
-
-                # Check every second
+                # ⏱️ Check every second
                 time.sleep(1)
         except Exception as e:
             logger.error(f"Error in monitor loop: {e}")
