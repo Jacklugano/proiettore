@@ -74,6 +74,18 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Inizia la riproduzione automaticamente senza intervento manuale
   - Si integra con il ripristino sessione: se esiste una sessione salvata ha priorità
   - Utile per installazioni kiosk/digital signage che devono partire automaticamente
+- 🖥️ **Anteprima live ora funziona con DRM video output**
+  - Cambiato metodo cattura da screenshot MPV a cattura framebuffer
+  - Usa FFmpeg per catturare /dev/fb0 (framebuffer) ogni 3 secondi
+  - Mostra esattamente ciò che appare sullo schermo HDMI
+  - Risolve problema anteprima nera con --vo=drm
+  - Funziona anche senza desktop manager (modalità console)
+- ⬛ **Schermo nero automatico quando non c'è riproduzione**
+  - All'avvio del servizio: schermo completamente nero (nessuna console visibile)
+  - Durante riproduzione: video a schermo intero
+  - Quando si ferma il video: torna automaticamente schermo nero
+  - Nasconde cursore TTY e output console
+  - Look professionale per installazioni kiosk/digital signage
 - 🎨 Interfaccia utente con palette colori moderna
 - 🚀 Performance di mount cartelle di rete
 - 📊 Visualizzazione stato player in tempo reale

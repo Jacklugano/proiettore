@@ -35,6 +35,9 @@ class VideoPlayer:
         self.session_manager = SessionManager()
         self.auto_save_session = True  # Auto-save session on changes
 
+        # Set black screen on initialization
+        self._set_black_screen()
+
     def play(self, video_path: str, skip_hdmi_check: bool = False) -> bool:
         """
         Play a video file
@@ -76,10 +79,6 @@ class VideoPlayer:
                 '--hwdec=auto',  # Hardware decode
                 '--drm-device=/dev/dri/card1',  # Use DRM card1 (where HDMI is connected)
                 '--drm-connector=HDMI-A-1',  # Use HDMI output
-                f'--input-ipc-server={MPV_SOCKET_PATH}',  # IPC for screenshot control
-                f'--screenshot-directory=/tmp',  # Screenshot directory
-                '--screenshot-template=proiettore_preview',  # Screenshot filename
-                '--screenshot-format=jpg',  # JPEG format for web
                 video_path
             ]
 
@@ -129,6 +128,9 @@ class VideoPlayer:
                 except:
                     pass
 
+            # Set black screen after stopping playback
+            self._set_black_screen()
+
             # Save session after stopping
             if self.auto_save_session:
                 self._save_current_session()
@@ -141,6 +143,8 @@ class VideoPlayer:
             if self.process:
                 self.process.kill()
                 self.process = None
+            # Still try to set black screen even on error
+            self._set_black_screen()
             return False
 
     def pause(self) -> bool:
@@ -246,35 +250,72 @@ class VideoPlayer:
             logger.info("Screenshot capture thread stopped")
 
     def _screenshot_loop(self):
-        """Background loop that captures screenshots periodically"""
-        # Wait a bit for MPV to start and create the socket
-        time.sleep(1)
+        """Background loop that captures framebuffer screenshots periodically"""
+        # Wait a bit for MPV to start rendering
+        time.sleep(2)
 
         while not self.screenshot_stop_event.is_set():
             try:
-                if self.is_playing and os.path.exists(MPV_SOCKET_PATH):
-                    # Send screenshot command to MPV via IPC
-                    self._send_mpv_command('screenshot')
-                    logger.debug("Screenshot captured")
+                if self.is_playing:
+                    # Capture framebuffer using ffmpeg
+                    # This captures the actual screen output, including DRM video
+                    subprocess.run([
+                        'ffmpeg',
+                        '-f', 'fbdev',  # Framebuffer device input
+                        '-i', '/dev/fb0',  # Input from framebuffer 0
+                        '-vframes', '1',  # Capture 1 frame
+                        '-s', '640x480',  # Resize for web (smaller file)
+                        '-q:v', '5',  # JPEG quality (2-31, lower is better)
+                        '-y',  # Overwrite output file
+                        PREVIEW_SCREENSHOT_PATH
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2,
+                    check=False
+                    )
+                    logger.debug("Framebuffer screenshot captured")
+            except subprocess.TimeoutExpired:
+                logger.warning("Screenshot capture timeout")
             except Exception as e:
-                logger.error(f"Error capturing screenshot: {e}")
+                logger.error(f"Error capturing framebuffer screenshot: {e}")
 
             # Wait 3 seconds before next screenshot
             self.screenshot_stop_event.wait(3)
 
-    def _send_mpv_command(self, command: str):
-        """Send command to MPV via IPC socket"""
+    def _set_black_screen(self):
+        """Set black screen on TTY (hide console, show black)"""
         try:
-            import socket
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.connect(MPV_SOCKET_PATH)
+            # Clear the screen and hide cursor
+            subprocess.run([
+                'sh', '-c',
+                'setterm -cursor off -blank force > /dev/tty0 2>/dev/null || true'
+            ], check=False, timeout=1)
 
-            # MPV IPC uses JSON commands
-            cmd = json.dumps({"command": [command]}) + "\n"
-            sock.sendall(cmd.encode('utf-8'))
-            sock.close()
+            # Alternative: blank the framebuffer if setterm doesn't work
+            try:
+                with open('/sys/class/graphics/fb0/blank', 'w') as f:
+                    f.write('1')  # 1 = blank/black screen
+            except:
+                pass
+
+            logger.debug("Black screen activated")
         except Exception as e:
-            logger.debug(f"Could not send command to MPV: {e}")
+            logger.debug(f"Could not set black screen: {e}")
+
+    def _clear_black_screen(self):
+        """Clear black screen (unblank)"""
+        try:
+            # Unblank the framebuffer
+            try:
+                with open('/sys/class/graphics/fb0/blank', 'w') as f:
+                    f.write('0')  # 0 = unblank
+            except:
+                pass
+
+            logger.debug("Black screen cleared")
+        except Exception as e:
+            logger.debug(f"Could not clear black screen: {e}")
 
     def _save_current_session(self):
         """Save current playback session"""
