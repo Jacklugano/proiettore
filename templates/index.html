@@ -120,11 +120,22 @@
                     <!-- Middle Column - Video List -->
                     <div class="col-md-8">
                         <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-collection-play"></i> Video Disponibili</span>
-                                <button class="btn btn-sm btn-outline-primary" id="btn-load-playlist">
-                                    <i class="bi bi-list-check"></i> Carica Playlist
-                                </button>
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span><i class="bi bi-collection-play"></i> Video Disponibili</span>
+                                    <span class="badge bg-info" id="video-count">0 video</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" id="btn-select-all">
+                                        <i class="bi bi-check-square"></i> Seleziona Tutti
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" id="btn-deselect-all">
+                                        <i class="bi bi-square"></i> Deseleziona Tutti
+                                    </button>
+                                    <button class="btn btn-sm btn-primary ms-auto" id="btn-load-playlist">
+                                        <i class="bi bi-list-check"></i> Carica Playlist (<span id="selected-count">0</span>)
+                                    </button>
+                                </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="video-list" id="video-list">

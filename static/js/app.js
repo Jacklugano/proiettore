@@ -65,6 +65,10 @@ class ProiettoreApp {
         document.getElementById('btn-test-network').addEventListener('click', () => this.testNetworkConfig());
         document.getElementById('btn-browse-shares').addEventListener('click', () => this.browseShares());
 
+        // Video selection buttons
+        document.getElementById('btn-select-all').addEventListener('click', () => this.selectAllVideos());
+        document.getElementById('btn-deselect-all').addEventListener('click', () => this.deselectAllVideos());
+
         // Config volume slider
         const configVolumeSlider = document.getElementById('config-volume');
         configVolumeSlider.addEventListener('input', (e) => {
@@ -150,32 +154,47 @@ class ProiettoreApp {
                 </div>
             `;
             document.getElementById('btn-play').disabled = true;
+            document.getElementById('video-count').textContent = '0 video';
+            this.updateSelectedCount();
             return;
         }
 
         document.getElementById('btn-play').disabled = false;
+        document.getElementById('video-count').textContent = `${this.videos.length} video`;
 
         videoList.innerHTML = this.videos.map((video, index) => `
             <div class="video-item" data-index="${index}" data-path="${video.path}">
-                <div class="video-name">${video.name}</div>
-                <div class="video-size">${this.formatFileSize(video.size)}</div>
+                <input type="checkbox" class="video-checkbox" data-path="${video.path}">
+                <div class="video-info">
+                    <div class="video-name">${video.name}</div>
+                    <div class="video-size">${this.formatFileSize(video.size)}</div>
+                </div>
             </div>
         `).join('');
 
-        // Add click handlers
-        document.querySelectorAll('.video-item').forEach(item => {
-            item.addEventListener('click', (e) => {
+        // Add click handlers for checkboxes
+        document.querySelectorAll('.video-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', () => this.updateSelectedCount());
+        });
+
+        // Add click handlers for video items (click on video-info selects it for single play)
+        document.querySelectorAll('.video-item .video-info').forEach(info => {
+            const item = info.closest('.video-item');
+
+            info.addEventListener('click', (e) => {
                 document.querySelectorAll('.video-item').forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
                 this.selectedVideo = item.dataset.path;
             });
 
             // Double-click to play
-            item.addEventListener('dblclick', () => {
+            info.addEventListener('dblclick', () => {
                 this.selectedVideo = item.dataset.path;
                 this.playSelected();
             });
         });
+
+        this.updateSelectedCount();
     }
 
     async playSelected() {
@@ -246,14 +265,54 @@ class ProiettoreApp {
         }
     }
 
+    updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.video-checkbox:checked');
+        const count = checkboxes.length;
+        document.getElementById('selected-count').textContent = count;
+    }
+
+    selectAllVideos() {
+        document.querySelectorAll('.video-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        this.updateSelectedCount();
+    }
+
+    deselectAllVideos() {
+        document.querySelectorAll('.video-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        this.updateSelectedCount();
+    }
+
+    getSelectedVideos() {
+        const selectedPaths = [];
+        document.querySelectorAll('.video-checkbox:checked').forEach(checkbox => {
+            selectedPaths.push(checkbox.dataset.path);
+        });
+        return selectedPaths;
+    }
+
     async loadPlaylist() {
         if (this.videos.length === 0) {
             alert('Nessun video disponibile');
             return;
         }
 
+        // Get selected videos, or all videos if none selected
+        let videoPaths = this.getSelectedVideos();
+
+        if (videoPaths.length === 0) {
+            // No videos selected, use all videos
+            videoPaths = this.videos.map(v => v.path);
+        }
+
+        if (videoPaths.length === 0) {
+            alert('Nessun video da caricare');
+            return;
+        }
+
         try {
-            const videoPaths = this.videos.map(v => v.path);
             const response = await fetch('/api/playlist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -262,7 +321,7 @@ class ProiettoreApp {
 
             const data = await response.json();
             if (data.success) {
-                alert(`Playlist caricata con ${this.videos.length} video`);
+                alert(`Playlist caricata con ${videoPaths.length} video`);
             }
 
         } catch (error) {

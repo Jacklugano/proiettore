@@ -40,8 +40,9 @@ class VideoPlayer:
 
             # MPV command for Raspberry Pi
             # Uses HDMI for video and auto for audio (will use default audio output)
+            # Use full path for systemd compatibility
             cmd = [
-                'mpv',
+                '/usr/bin/mpv',
                 '--fs',  # Fullscreen
                 '--no-osc',  # No on-screen controller
                 '--no-input-default-bindings',  # Disable keyboard controls

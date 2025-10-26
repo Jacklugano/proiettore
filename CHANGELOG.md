@@ -12,6 +12,13 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Salvataggio configurazione persistente in database
   - **Browser cartelle condivise SMB**: Esplora e seleziona cartelle disponibili sul NAS con un click
 
+- ✨ **Selezione video personalizzata per playlist**
+  - Checkbox per ogni video nella lista
+  - Pulsanti "Seleziona Tutti" / "Deseleziona Tutti"
+  - Contatore video selezionati in tempo reale
+  - Carica in playlist solo i video selezionati
+  - Se nessun video è selezionato, carica tutti (comportamento precedente)
+
 - ✨ **Interfaccia web completamente ridisegnata**
   - Design moderno con gradienti colorati
   - Animazioni smooth su tutti i componenti
@@ -49,6 +56,9 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - SMB ora auto-negozia il metodo di sicurezza ottimale (funziona con Synology, QNAP, Windows Server)
   - File credentials creato come root usando sudo tee/chmod per massima compatibilità
   - Risolve definitivamente "mount error(13): Permission denied"
+- 🐛 **MPV player non trovato dal servizio systemd**
+  - Usato path completo `/usr/bin/mpv` invece di `mpv` per compatibilità systemd
+  - Risolve errore "[Errno 2] No such file or directory: 'mpv'"
 - 🐛 Autenticazione SMB con vari tipi di NAS
 - 🐛 Compatibilità con Synology DSM 6.x e 7.x
 
