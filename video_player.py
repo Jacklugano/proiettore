@@ -199,6 +199,11 @@ class VideoPlayer:
                 logger.warning("No valid videos found in playlist")
                 return False
 
+            # Maximum 20 videos per playlist (cache limit)
+            if len(existing_videos) > 20:
+                logger.error(f"Too many videos in playlist! Maximum 20, received {len(existing_videos)}")
+                return False
+
             logger.info(f"Loading playlist with {len(existing_videos)} existing videos:")
             for idx, video in enumerate(existing_videos, 1):
                 logger.info(f"  {idx}. {os.path.basename(video)}")

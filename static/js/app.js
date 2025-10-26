@@ -376,6 +376,12 @@ class ProiettoreApp {
             return;
         }
 
+        // Maximum 20 videos per playlist
+        if (videoPaths.length > 20) {
+            alert(`Troppi video selezionati! Massimo 20 video per playlist.\nHai selezionato: ${videoPaths.length} video`);
+            return;
+        }
+
         try {
             const response = await fetch('/api/playlist', {
                 method: 'POST',
@@ -386,10 +392,13 @@ class ProiettoreApp {
             const data = await response.json();
             if (data.success) {
                 alert(`Playlist caricata con ${videoPaths.length} video`);
+            } else {
+                alert(`Errore: ${data.error || 'Impossibile caricare playlist'}`);
             }
 
         } catch (error) {
             console.error('Error loading playlist:', error);
+            alert('Errore di connessione durante il caricamento della playlist');
         }
     }
 

@@ -186,8 +186,23 @@ def api_playlist():
     logger.info(f"API received request to load playlist with {len(videos)} videos")
     logger.debug(f"Video paths: {videos}")
 
+    # Check maximum limit
+    if len(videos) > 20:
+        logger.warning(f"Playlist rejected: too many videos ({len(videos)} > 20)")
+        return jsonify({
+            'success': False,
+            'error': f'Troppi video! Massimo 20 per playlist. Ricevuti: {len(videos)}'
+        }), 400
+
     success = player.load_playlist(videos)
-    return jsonify({'success': success})
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Errore durante caricamento playlist'
+        }), 500
 
 
 @app.route('/api/next', methods=['POST'])

@@ -19,6 +19,7 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Carica in playlist SOLO i video selezionati
   - Se nessun video selezionato, mostra errore invece di caricare tutti
   - Controllo esplicito: devi selezionare almeno un video
+  - **Limite massimo: 20 video per playlist** per evitare saturazione cache
 
 - ✨ **Cache locale video per riproduzione senza latenza**
   - Quando si carica una playlist, tutti i video vengono copiati in cache locale (`/tmp/video_cache/`)
@@ -27,7 +28,8 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Nessun buffering anche con rete lenta o instabile
   - Funziona anche se la connessione SMB si interrompe durante riproduzione
   - Cache automaticamente pulita all'avvio e quando si carica nuova playlist
-  - Ottimizzato per playlist piccole (5-10 video tipici)
+  - **Limite: massimo 20 video per playlist** per controllare spazio disco
+  - Validazione su frontend (alert immediato) e backend (sicurezza)
   - Status cache visibile in `/api/status` (numero video, dimensione totale MB)
   - Massima affidabilità per installazioni kiosk/digital signage
 
