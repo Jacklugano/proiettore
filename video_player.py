@@ -64,6 +64,9 @@ class VideoPlayer:
 
             self.stop()
 
+            # Clear black screen to allow video to be visible
+            self._clear_black_screen()
+
             # MPV command for Raspberry Pi
             # Uses DRM for direct framebuffer access (bypasses X11/desktop)
             # This ensures video is displayed fullscreen without desktop visible
