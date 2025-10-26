@@ -5,9 +5,10 @@ import subprocess
 import os
 import logging
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 from hdmi_manager import HDMIManager
 from session_manager import SessionManager
+from video_cache import VideoCache
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,12 @@ class VideoPlayer:
         self.is_paused = False
         self.hdmi_manager = HDMIManager()
         self.session_manager = SessionManager()
+        self.video_cache = VideoCache()
         self.auto_save_session = True  # Auto-save session on changes
+        self.original_to_cache: Dict[str, str] = {}  # Mapping original paths to cache paths
+
+        # Clear cache on initialization (fresh start)
+        self.video_cache.clear_cache()
 
         # Set black screen on initialization
         self._set_black_screen()
@@ -168,15 +174,29 @@ class VideoPlayer:
 
     def load_playlist(self, videos: List[str]) -> bool:
         """
-        Load a playlist of videos
+        Load a playlist of videos and cache them locally
 
         Args:
-            videos: List of video file paths
+            videos: List of video file paths (from network share)
         """
         try:
-            self.playlist = [v for v in videos if os.path.exists(v)]
+            # Filter existing videos
+            existing_videos = [v for v in videos if os.path.exists(v)]
+
+            if not existing_videos:
+                logger.warning("No valid videos found in playlist")
+                return False
+
+            logger.info(f"Loading playlist with {len(existing_videos)} videos...")
+
+            # Cache all videos in playlist
+            self.original_to_cache = self.video_cache.cache_playlist(existing_videos)
+
+            # Update playlist to use cached paths
+            self.playlist = list(self.original_to_cache.values())
             self.current_index = 0
-            logger.info(f"Loaded playlist with {len(self.playlist)} videos")
+
+            logger.info(f"Playlist loaded with {len(self.playlist)} cached videos")
             return True
 
         except Exception as e:
@@ -209,6 +229,10 @@ class VideoPlayer:
             'playlist_length': len(self.playlist),
             'current_index': self.current_index
         }
+
+    def get_cache_status(self) -> dict:
+        """Get video cache status"""
+        return self.video_cache.get_cache_status()
 
     def is_alive(self) -> bool:
         """Check if player process is alive"""

@@ -99,7 +99,8 @@ def api_status():
         'player': player.get_status(),
         'network': network.get_status(),
         'scheduler_running': scheduler.scheduler.running,
-        'hdmi': player.check_hdmi_status()
+        'hdmi': player.check_hdmi_status(),
+        'cache': player.get_cache_status()
     })
 
 

@@ -19,7 +19,18 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Carica in playlist solo i video selezionati
   - Se nessun video è selezionato, carica tutti (comportamento precedente)
 
-- ✨ **Anteprima live della riproduzione**
+- ✨ **Cache locale video per riproduzione senza latenza**
+  - Quando si carica una playlist, tutti i video vengono copiati in cache locale (`/tmp/video_cache/`)
+  - Riproduzione avviene SEMPRE da cache locale, mai direttamente da rete SMB
+  - Zero latenza di rete durante playback
+  - Nessun buffering anche con rete lenta o instabile
+  - Funziona anche se la connessione SMB si interrompe durante riproduzione
+  - Cache automaticamente pulita all'avvio e quando si carica nuova playlist
+  - Ottimizzato per playlist piccole (5-10 video tipici)
+  - Status cache visibile in `/api/status` (numero video, dimensione totale MB)
+  - Massima affidabilità per installazioni kiosk/digital signage
+
+- ✨ **Anteprima live della riproduzione** (RIMOSSA - vedi sezione Rimosso)
   - Riquadro preview nella pagina Player che mostra screenshot del video in riproduzione
   - Aggiornamento automatico ogni 3 secondi
   - Mostra il nome del video corrente
