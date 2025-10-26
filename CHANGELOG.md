@@ -26,6 +26,22 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Permette di monitorare la riproduzione da remoto senza vedere l'HDMI
   - Screenshot catturati tramite MPV IPC
 
+- ✨ **Rilevamento HDMI automatico**
+  - Controllo presenza display HDMI prima della riproduzione
+  - Supporta multiple metodi di detection (DRM, tvservice, framebuffer)
+  - Compatibile con Raspberry Pi 4 e 5
+  - Avviso visivo nell'interfaccia se HDMI non collegato
+  - Previene errori di riproduzione quando display assente
+  - API endpoint `/api/hdmi/status` per controllo manuale
+
+- ✨ **Salvataggio e ripristino sessione automatico**
+  - Salva automaticamente playlist, video corrente, stato riproduzione
+  - Ripristina sessione automaticamente dopo riavvio sistema/servizio
+  - Riprende riproduzione dal punto esatto dove era stata interrotta
+  - Mantiene stato pausa/play e volume
+  - Sessione salvata in `/tmp/proiettore_session.json`
+  - Sessioni più vecchie di 24 ore vengono ignorate
+
 - ✨ **Interfaccia web completamente ridisegnata**
   - Design moderno con gradienti colorati
   - Animazioni smooth su tutti i componenti

@@ -8,6 +8,8 @@ import threading
 import time
 import json
 from typing import Optional, List
+from hdmi_manager import HDMIManager
+from session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +31,17 @@ class VideoPlayer:
         self.is_paused = False
         self.screenshot_thread: Optional[threading.Thread] = None
         self.screenshot_stop_event = threading.Event()
+        self.hdmi_manager = HDMIManager()
+        self.session_manager = SessionManager()
+        self.auto_save_session = True  # Auto-save session on changes
 
-    def play(self, video_path: str) -> bool:
+    def play(self, video_path: str, skip_hdmi_check: bool = False) -> bool:
         """
         Play a video file
 
         Args:
             video_path: Path to the video file
+            skip_hdmi_check: Skip HDMI connection check (for testing)
 
         Returns:
             True if playback started successfully, False otherwise
@@ -44,6 +50,14 @@ class VideoPlayer:
             if not os.path.exists(video_path):
                 logger.error(f"Video file not found: {video_path}")
                 return False
+
+            # Check HDMI connection before playing
+            if not skip_hdmi_check:
+                if not self.hdmi_manager.is_hdmi_connected():
+                    logger.error("HDMI display not connected! Cannot start playback.")
+                    return False
+                else:
+                    logger.info("HDMI display detected, starting playback")
 
             self.stop()
 
@@ -78,6 +92,10 @@ class VideoPlayer:
             # Start screenshot capture thread
             self._start_screenshot_thread()
 
+            # Save session after starting playback
+            if self.auto_save_session:
+                self._save_current_session()
+
             logger.info(f"Started playing: {video_path}")
             return True
 
@@ -107,6 +125,10 @@ class VideoPlayer:
                 except:
                     pass
 
+            # Save session after stopping
+            if self.auto_save_session:
+                self._save_current_session()
+
             logger.info("Playback stopped")
             return True
 
@@ -124,6 +146,11 @@ class VideoPlayer:
                 # Send pause command via echo to mpv's input
                 subprocess.run(['killall', '-USR1', 'mpv'], check=False)
                 self.is_paused = not self.is_paused
+
+                # Save session after pause state change
+                if self.auto_save_session:
+                    self._save_current_session()
+
                 logger.info(f"Playback {'paused' if self.is_paused else 'resumed'}")
                 return True
             return False
@@ -244,3 +271,63 @@ class VideoPlayer:
             sock.close()
         except Exception as e:
             logger.debug(f"Could not send command to MPV: {e}")
+
+    def _save_current_session(self):
+        """Save current playback session"""
+        try:
+            self.session_manager.save_session(
+                playlist=self.playlist,
+                current_index=self.current_index,
+                current_video=self.current_video,
+                is_playing=self.is_playing,
+                is_paused=self.is_paused,
+                volume=self.volume
+            )
+        except Exception as e:
+            logger.error(f"Error saving session: {e}")
+
+    def restore_session(self) -> bool:
+        """
+        Restore saved playback session
+
+        Returns:
+            True if session restored successfully, False otherwise
+        """
+        try:
+            session = self.session_manager.load_session()
+            if not session:
+                logger.info("No session to restore")
+                return False
+
+            # Restore playlist
+            self.playlist = session['playlist']
+            self.current_index = session['current_index']
+            self.volume = session['volume']
+
+            logger.info(f"Session restored: {len(self.playlist)} videos, index {self.current_index}")
+
+            # If was playing, resume playback
+            if session['is_playing'] and session['current_video']:
+                # Check if files still exist
+                if os.path.exists(session['current_video']):
+                    logger.info(f"Resuming playback: {session['current_video']}")
+                    success = self.play(session['current_video'])
+
+                    # If was paused, pause again
+                    if success and session['is_paused']:
+                        time.sleep(1)  # Wait for playback to start
+                        self.pause()
+
+                    return success
+                else:
+                    logger.warning(f"Saved video no longer exists: {session['current_video']}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error restoring session: {e}")
+            return False
+
+    def check_hdmi_status(self) -> dict:
+        """Get current HDMI connection status"""
+        return self.hdmi_manager.get_hdmi_info()

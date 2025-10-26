@@ -39,6 +39,24 @@ def scheduled_play(video_path: str):
     player.play(video_path)
 
 
+# Restore session on startup
+def restore_session_on_startup():
+    """Restore saved playback session if exists"""
+    try:
+        logger.info("Checking for saved session...")
+        if player.restore_session():
+            logger.info("Session restored successfully")
+        else:
+            logger.info("No session to restore or restore failed")
+    except Exception as e:
+        logger.error(f"Error during session restore: {e}")
+
+
+# Call session restore after a short delay (let Flask finish initialization)
+import threading
+threading.Timer(2.0, restore_session_on_startup).start()
+
+
 # Routes
 @app.route('/')
 def index():
@@ -52,8 +70,15 @@ def api_status():
     return jsonify({
         'player': player.get_status(),
         'network': network.get_status(),
-        'scheduler_running': scheduler.scheduler.running
+        'scheduler_running': scheduler.scheduler.running,
+        'hdmi': player.check_hdmi_status()
     })
+
+
+@app.route('/api/hdmi/status')
+def api_hdmi_status():
+    """Get HDMI connection status"""
+    return jsonify(player.check_hdmi_status())
 
 
 @app.route('/api/preview')

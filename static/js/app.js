@@ -124,10 +124,43 @@ class ProiettoreApp {
             // Update video preview
             this.updatePreview(player);
 
+            // Update HDMI status if available
+            if (data.hdmi) {
+                this.updateHDMIStatus(data.hdmi);
+            }
+
         } catch (error) {
             console.error('Error updating status:', error);
             document.getElementById('status-indicator').innerHTML =
                 '<span class="badge bg-danger">Errore</span>';
+        }
+    }
+
+    updateHDMIStatus(hdmiStatus) {
+        // Show HDMI warning in player status if not connected
+        const playerStatusDiv = document.querySelector('.player-status');
+        let hdmiWarning = document.getElementById('hdmi-warning');
+
+        if (!hdmiStatus.connected) {
+            // Create warning if doesn't exist
+            if (!hdmiWarning) {
+                hdmiWarning = document.createElement('div');
+                hdmiWarning.id = 'hdmi-warning';
+                hdmiWarning.className = 'alert alert-warning mt-2 mb-0 small';
+                hdmiWarning.innerHTML = `
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>HDMI non collegato!</strong><br>
+                    <small>Collega un display HDMI per riprodurre video.</small>
+                `;
+                if (playerStatusDiv) {
+                    playerStatusDiv.appendChild(hdmiWarning);
+                }
+            }
+        } else {
+            // Remove warning if exists
+            if (hdmiWarning) {
+                hdmiWarning.remove();
+            }
         }
     }
 
