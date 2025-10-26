@@ -183,6 +183,9 @@ def api_playlist():
     data = request.get_json()
     videos = data.get('videos', [])
 
+    logger.info(f"API received request to load playlist with {len(videos)} videos")
+    logger.debug(f"Video paths: {videos}")
+
     success = player.load_playlist(videos)
     return jsonify({'success': success})
 

@@ -190,6 +190,8 @@ class VideoPlayer:
             videos: List of video file paths (from network share)
         """
         try:
+            logger.info(f"load_playlist called with {len(videos)} videos")
+
             # Filter existing videos
             existing_videos = [v for v in videos if os.path.exists(v)]
 
@@ -197,7 +199,9 @@ class VideoPlayer:
                 logger.warning("No valid videos found in playlist")
                 return False
 
-            logger.info(f"Loading playlist with {len(existing_videos)} videos...")
+            logger.info(f"Loading playlist with {len(existing_videos)} existing videos:")
+            for idx, video in enumerate(existing_videos, 1):
+                logger.info(f"  {idx}. {os.path.basename(video)}")
 
             # Cache all videos in playlist
             self.original_to_cache = self.video_cache.cache_playlist(existing_videos)
