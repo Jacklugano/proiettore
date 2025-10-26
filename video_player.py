@@ -5,6 +5,7 @@ import subprocess
 import os
 import logging
 import time
+import threading
 from typing import Optional, List, Dict
 from hdmi_manager import HDMIManager
 from session_manager import SessionManager
@@ -29,6 +30,9 @@ class VideoPlayer:
         self.video_cache = VideoCache()
         self.auto_save_session = True  # Auto-save session on changes
         self.original_to_cache: Dict[str, str] = {}  # Mapping original paths to cache paths
+        self.loop_playlist = True  # Auto-play next video and loop playlist
+        self.monitor_thread: Optional[threading.Thread] = None
+        self.monitor_stop_event = threading.Event()
 
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
@@ -93,6 +97,9 @@ class VideoPlayer:
             self.is_playing = True
             self.is_paused = False
 
+            # Start monitor thread to auto-play next video when current finishes
+            self._start_monitor_thread()
+
             # Save session after starting playback
             if self.auto_save_session:
                 self._save_current_session()
@@ -107,6 +114,9 @@ class VideoPlayer:
     def stop(self) -> bool:
         """Stop current playback"""
         try:
+            # Stop monitor thread
+            self._stop_monitor_thread()
+
             if self.process:
                 self.process.terminate()
                 self.process.wait(timeout=5)
@@ -273,6 +283,49 @@ class VideoPlayer:
             logger.debug("Black screen cleared")
         except Exception as e:
             logger.debug(f"Could not clear black screen: {e}")
+
+    def _start_monitor_thread(self):
+        """Start background thread to monitor MPV process and auto-play next video"""
+        self._stop_monitor_thread()  # Stop any existing thread
+        self.monitor_stop_event.clear()
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+        logger.debug("Process monitor thread started")
+
+    def _stop_monitor_thread(self):
+        """Stop process monitor thread"""
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_stop_event.set()
+            self.monitor_thread.join(timeout=2)
+            logger.debug("Process monitor thread stopped")
+
+    def _monitor_loop(self):
+        """Background loop that monitors MPV process and auto-plays next video"""
+        try:
+            while not self.monitor_stop_event.is_set():
+                # Check if process is still running
+                if self.process and self.process.poll() is not None:
+                    # Process has finished
+                    logger.info(f"Video finished: {os.path.basename(self.current_video) if self.current_video else 'unknown'}")
+
+                    # Only auto-play next if loop is enabled and there's a playlist
+                    if self.loop_playlist and self.playlist:
+                        logger.info("Auto-playing next video in playlist...")
+                        # Use play_next which handles looping with modulo
+                        self.play_next()
+                    else:
+                        # No loop or no playlist, just stop
+                        logger.info("Playback finished, no auto-play")
+                        self.is_playing = False
+                        self._set_black_screen()
+
+                    # Exit monitor loop
+                    break
+
+                # Check every second
+                time.sleep(1)
+        except Exception as e:
+            logger.error(f"Error in monitor loop: {e}")
 
     def _save_current_session(self):
         """Save current playback session"""

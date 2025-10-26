@@ -79,6 +79,14 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
   - Verifica stato e rollback se necessario
 
 ### Migliorato
+- 🔁 **Riproduzione continua e loop automatico playlist**
+  - Thread di monitoraggio MPV rileva automaticamente quando un video finisce
+  - Passa automaticamente al video successivo senza interruzioni
+  - Loop infinito della playlist: quando finisce l'ultimo video, ricomincia dal primo
+  - Nessun blocco tra un video e l'altro
+  - Funzionamento completamente automatico e trasparente
+  - Ideale per digital signage e installazioni kiosk con riproduzione continua 24/7
+  - Flag `loop_playlist` (default: True) per abilitare/disabilitare il loop
 - ⚡ **Avvio automatico player implementato**
   - L'opzione "Avvio Automatico" nelle Impostazioni ora è completamente funzionale
   - Se abilitata, carica automaticamente tutti i video disponibili all'avvio del servizio
