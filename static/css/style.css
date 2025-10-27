@@ -669,3 +669,83 @@ small.text-muted {
 #network-test-result {
     animation: slideInUp 0.3s ease;
 }
+
+/* Saved Playlists */
+.saved-playlists-list {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #f8f9fa;
+}
+
+.saved-playlist-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e9ecef;
+    background: white;
+    margin: 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.saved-playlist-item:hover {
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.saved-playlist-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.saved-playlist-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 6px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.saved-playlist-name i {
+    font-size: 1.2rem;
+}
+
+.saved-playlist-details {
+    font-size: 0.85rem;
+}
+
+.saved-playlist-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.saved-playlist-actions .btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* Saved playlists scrollbar */
+.saved-playlists-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.saved-playlists-list::-webkit-scrollbar-track {
+    background: #f1f3f5;
+    border-radius: 10px;
+}
+
+.saved-playlists-list::-webkit-scrollbar-thumb {
+    background: var(--primary-gradient);
+    border-radius: 10px;
+    border: 2px solid #f1f3f5;
+}
+
+.saved-playlists-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #65398d 100%);
+}

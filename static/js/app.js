@@ -24,6 +24,7 @@ class ProiettoreApp {
         this.loadSchedules();
         this.loadConfig();
         this.loadSavedPlaylist();
+        this.loadSavedPlaylists();
     }
 
     bindEvents() {
@@ -72,8 +73,9 @@ class ProiettoreApp {
         document.getElementById('btn-deselect-all').addEventListener('click', () => this.deselectAllVideos());
 
         // Playlist controls
-        document.getElementById('btn-save-playlist').addEventListener('click', () => this.savePlaylist());
+        document.getElementById('btn-save-named-playlist').addEventListener('click', () => this.saveNamedPlaylist());
         document.getElementById('btn-clear-playlist').addEventListener('click', () => this.clearPlaylist());
+        document.getElementById('btn-refresh-playlists').addEventListener('click', () => this.loadSavedPlaylists());
 
         // Config volume slider
         const configVolumeSlider = document.getElementById('config-volume');
@@ -480,24 +482,33 @@ class ProiettoreApp {
         `).join('');
     }
 
-    async savePlaylist() {
+    async saveNamedPlaylist() {
         if (this.currentPlaylist.length === 0) {
             alert('Nessun video in playlist da salvare');
             return;
         }
 
+        // Prompt for playlist name
+        const name = prompt('Inserisci il nome della playlist:');
+        if (!name || name.trim() === '') {
+            return;
+        }
+
         try {
-            const response = await fetch('/api/playlist/save', {
+            const response = await fetch('/api/playlists/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    name: name.trim(),
                     videos: this.currentPlaylist.map(v => v.path)
                 })
             });
 
             const data = await response.json();
             if (data.success) {
-                alert(`Playlist salvata con successo (${this.currentPlaylist.length} video)`);
+                alert(`Playlist "${name}" salvata con successo (${this.currentPlaylist.length} video)\n\nI video sono stati salvati localmente e saranno disponibili anche offline.`);
+                // Refresh the saved playlists list
+                this.loadSavedPlaylists();
             } else {
                 alert('Errore nel salvare la playlist');
             }
@@ -578,6 +589,112 @@ class ProiettoreApp {
             }
         } catch (error) {
             console.error('Error loading saved playlist:', error);
+        }
+    }
+
+    async loadSavedPlaylists() {
+        try {
+            const response = await fetch('/api/playlists');
+            const data = await response.json();
+
+            if (data.success) {
+                this.renderSavedPlaylists(data.playlists);
+            }
+        } catch (error) {
+            console.error('Error loading saved playlists:', error);
+        }
+    }
+
+    renderSavedPlaylists(playlists) {
+        const container = document.getElementById('saved-playlists-list');
+
+        if (!playlists || playlists.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="bi bi-collection" style="font-size: 2rem; opacity: 0.3;"></i>
+                    <p class="mt-2">Nessuna playlist salvata</p>
+                    <small>Salva una playlist per renderla disponibile offline</small>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = playlists.map(playlist => `
+            <div class="saved-playlist-item">
+                <div class="saved-playlist-info">
+                    <div class="saved-playlist-name">
+                        <i class="bi bi-collection-play-fill text-primary"></i>
+                        <strong>${playlist.name}</strong>
+                    </div>
+                    <div class="saved-playlist-details">
+                        <small class="text-muted">
+                            ${playlist.video_count} video | ${playlist.cache_size_mb} MB
+                        </small>
+                    </div>
+                </div>
+                <div class="saved-playlist-actions">
+                    <button class="btn btn-sm btn-primary" onclick="app.loadNamedPlaylist('${playlist.name}')">
+                        <i class="bi bi-play-fill"></i> Carica
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteNamedPlaylist('${playlist.name}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async loadNamedPlaylist(name) {
+        try {
+            const response = await fetch(`/api/playlists/${encodeURIComponent(name)}/load`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.playlist) {
+                // Update current playlist
+                this.currentPlaylist = data.playlist.videos.map(path => ({
+                    path: path,
+                    name: path.split('/').pop()
+                }));
+
+                this.renderPlaylist();
+
+                alert(`Playlist "${name}" caricata con successo!\n\n${this.currentPlaylist.length} video pronti per la riproduzione.`);
+            } else {
+                alert('Errore nel caricare la playlist');
+            }
+
+        } catch (error) {
+            console.error('Error loading named playlist:', error);
+            alert('Errore nel caricare la playlist');
+        }
+    }
+
+    async deleteNamedPlaylist(name) {
+        if (!confirm(`Vuoi davvero eliminare la playlist "${name}"?\n\nQuesta operazione cancellerà tutti i video salvati localmente.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/playlists/${encodeURIComponent(name)}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Playlist "${name}" eliminata con successo`);
+                // Refresh the list
+                this.loadSavedPlaylists();
+            } else {
+                alert('Errore nell\'eliminare la playlist');
+            }
+
+        } catch (error) {
+            console.error('Error deleting named playlist:', error);
+            alert('Errore nell\'eliminare la playlist');
         }
     }
 
