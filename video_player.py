@@ -43,6 +43,7 @@ class VideoPlayer:
         self.last_position_update = 0.0  # Track last position for watchdog
         self.position_stuck_count = 0  # Count how many times position hasn't changed
         self.video_start_time = 0.0  # When current video started playing
+        self.transition_duration = 1.5  # Black screen transition between videos (seconds)
 
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
@@ -547,6 +548,12 @@ class VideoPlayer:
                         # Skip to next video
                         if self.loop_playlist and self.playlist:
                             logger.info("▶️  Skipping to next video after timeout...")
+
+                            # BLACK TRANSITION
+                            logger.info(f"⬛ BLACK TRANSITION: {self.transition_duration}s")
+                            self._set_black_screen()
+                            time.sleep(self.transition_duration)
+
                             self.play_next(from_monitor=True)
                             continue
                         else:
@@ -595,6 +602,11 @@ class VideoPlayer:
                         next_index = (self.current_index + 1) % len(self.playlist)
                         logger.info(f"▶️  AUTO-PLAY ENABLED - Attempting to play next video")
                         logger.info(f"   Next index will be: {next_index + 1}/{len(self.playlist)}")
+
+                        # BLACK TRANSITION: Fade to black between videos
+                        logger.info(f"⬛ BLACK TRANSITION: {self.transition_duration}s")
+                        self._set_black_screen()
+                        time.sleep(self.transition_duration)
 
                         try:
                             result = self.play_next(from_monitor=True)
