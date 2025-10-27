@@ -9,6 +9,7 @@ from video_player import VideoPlayer
 from network_manager import NetworkManager
 from scheduler import PlaybackScheduler
 from config_manager import ConfigManager
+from playlist_manager import PlaylistManager
 
 # Setup logging
 logging.basicConfig(
@@ -31,6 +32,7 @@ config_manager = ConfigManager()
 player = VideoPlayer(volume=Config.VOLUME)
 network = NetworkManager()
 scheduler = PlaybackScheduler()
+playlist_manager = PlaylistManager()
 
 
 def scheduled_play(video_path: str):
@@ -270,6 +272,53 @@ def api_playlist_clear():
     player.current_index = 0
     player.original_to_cache = {}
     success = player.save_playlist_to_file([])  # Save empty playlist
+    return jsonify({'success': success})
+
+
+# Named Playlists API
+@app.route('/api/playlists', methods=['GET'])
+def api_get_playlists():
+    """Get all saved playlists"""
+    playlists = playlist_manager.list_playlists()
+    return jsonify({'success': True, 'playlists': playlists})
+
+
+@app.route('/api/playlists/save', methods=['POST'])
+def api_save_named_playlist():
+    """Save playlist with name"""
+    data = request.get_json()
+    name = data.get('name')
+    videos = data.get('videos', [])
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Nome playlist richiesto'}), 400
+
+    success = playlist_manager.save_playlist(name, videos)
+    return jsonify({'success': success})
+
+
+@app.route('/api/playlists/<name>/load', methods=['POST'])
+def api_load_named_playlist(name):
+    """Load named playlist"""
+    playlist_data = playlist_manager.load_playlist(name)
+
+    if not playlist_data:
+        return jsonify({'success': False, 'error': 'Playlist non trovata'}), 404
+
+    # Load into player
+    success = player.load_playlist(playlist_data['videos'])
+
+    if success and player.playlist:
+        # Auto-start playback
+        player.play(player.playlist[0])
+
+    return jsonify({'success': success, 'playlist': playlist_data})
+
+
+@app.route('/api/playlists/<name>', methods=['DELETE'])
+def api_delete_named_playlist(name):
+    """Delete named playlist"""
+    success = playlist_manager.delete_playlist(name)
     return jsonify({'success': success})
 
 
