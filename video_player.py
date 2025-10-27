@@ -75,7 +75,22 @@ class VideoPlayer:
                 else:
                     logger.info("HDMI display detected, starting playback")
 
-            self.stop()
+            # Only stop previous playback if NOT called from monitor
+            # (monitor thread already knows previous video finished)
+            if not from_monitor:
+                self.stop()
+            else:
+                # Just terminate the old process if it exists, don't stop monitor
+                if self.process:
+                    try:
+                        self.process.terminate()
+                        self.process.wait(timeout=1)
+                    except:
+                        try:
+                            self.process.kill()
+                        except:
+                            pass
+                    self.process = None
 
             # Clear black screen to allow video to be visible
             self._clear_black_screen()
