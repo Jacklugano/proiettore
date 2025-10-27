@@ -45,11 +45,20 @@ class VideoPlayer:
         self.video_start_time = 0.0  # When current video started playing
         self.transition_duration = 1.5  # Black screen transition between videos (seconds)
 
+        # Screensaver management
+        self.screensaver_process: Optional[subprocess.Popen] = None
+        self.screensaver_enabled = True  # Enable/disable screensaver feature
+        self.screensaver_delay = 2  # Seconds to wait before showing screensaver after stop
+
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
 
         # Set black screen on initialization
         self._set_black_screen()
+
+        # Start screensaver initially (player is idle on startup)
+        if self.screensaver_enabled:
+            threading.Timer(self.screensaver_delay, self._start_screensaver).start()
 
     def play(self, video_path: str, skip_hdmi_check: bool = False, from_monitor: bool = False) -> bool:
         """
@@ -75,6 +84,9 @@ class VideoPlayer:
                     return False
                 else:
                     logger.info("HDMI display detected, starting playback")
+
+            # Stop screensaver if running
+            self._stop_screensaver()
 
             # Only stop previous playback if NOT called from monitor
             # (monitor thread already knows previous video finished)
@@ -179,6 +191,10 @@ class VideoPlayer:
             # Save session after stopping
             if self.auto_save_session:
                 self._save_current_session()
+
+            # Start screensaver after a short delay
+            if self.screensaver_enabled:
+                threading.Timer(self.screensaver_delay, self._start_screensaver).start()
 
             logger.info("Playback stopped")
             return True
@@ -492,6 +508,98 @@ class VideoPlayer:
             logger.debug("Black screen cleared")
         except Exception as e:
             logger.debug(f"Could not clear black screen: {e}")
+
+    def _start_screensaver(self):
+        """Start screensaver in fullscreen kiosk mode"""
+        try:
+            # Don't start if player is currently playing
+            if self.is_playing:
+                logger.debug("Skipping screensaver - player is active")
+                return
+
+            # Don't start if already running
+            if self.screensaver_process and self.screensaver_process.poll() is None:
+                logger.debug("Screensaver already running")
+                return
+
+            logger.info("🎨 Starting screensaver...")
+
+            # Get Flask server URL
+            screensaver_url = "http://localhost:5000/screensaver"
+
+            # Try chromium-browser first (more common on Raspberry Pi)
+            chromium_command = [
+                'chromium-browser',
+                '--kiosk',
+                '--noerrdialogs',
+                '--disable-infobars',
+                '--no-first-run',
+                '--check-for-update-interval=31536000',
+                '--disable-pinch',
+                '--overscroll-history-navigation=0',
+                screensaver_url
+            ]
+
+            try:
+                # Clear black screen to show chromium
+                self._clear_black_screen()
+
+                # Start chromium in kiosk mode
+                self.screensaver_process = subprocess.Popen(
+                    chromium_command,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+
+                logger.info(f"✅ Screensaver started (PID: {self.screensaver_process.pid})")
+
+            except FileNotFoundError:
+                # Try regular chromium if chromium-browser not found
+                chromium_command[0] = 'chromium'
+                try:
+                    self.screensaver_process = subprocess.Popen(
+                        chromium_command,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True
+                    )
+                    logger.info(f"✅ Screensaver started with chromium (PID: {self.screensaver_process.pid})")
+                except Exception as e:
+                    logger.error(f"Failed to start screensaver with chromium: {e}")
+
+        except Exception as e:
+            logger.error(f"Error starting screensaver: {e}")
+
+    def _stop_screensaver(self):
+        """Stop screensaver if running"""
+        try:
+            if self.screensaver_process:
+                if self.screensaver_process.poll() is None:  # Process is still running
+                    logger.info("🛑 Stopping screensaver...")
+
+                    # Terminate chromium gracefully
+                    try:
+                        self.screensaver_process.terminate()
+                        self.screensaver_process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        # Force kill if doesn't terminate
+                        self.screensaver_process.kill()
+                        self.screensaver_process.wait(timeout=1)
+
+                    logger.info("✅ Screensaver stopped")
+
+                self.screensaver_process = None
+
+        except Exception as e:
+            logger.error(f"Error stopping screensaver: {e}")
+            # Try to kill anyway
+            if self.screensaver_process:
+                try:
+                    self.screensaver_process.kill()
+                except:
+                    pass
+                self.screensaver_process = None
 
     def _start_monitor_thread(self):
         """Start background thread to monitor MPV process and auto-play next video"""

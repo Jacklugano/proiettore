@@ -121,6 +121,12 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/screensaver')
+def screensaver():
+    """Screensaver page with random animations"""
+    return render_template('screensaver.html')
+
+
 @app.route('/api/status')
 def api_status():
     """Get current status"""

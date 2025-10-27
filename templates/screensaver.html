@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proiettore Screensaver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+
+        #screensaver-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Matrix Rain Effect */
+        .matrix-rain {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .matrix-column {
+            position: absolute;
+            top: -100%;
+            color: #0f0;
+            font-size: 20px;
+            text-shadow: 0 0 10px #0f0;
+            white-space: pre;
+            animation: matrix-fall linear infinite;
+        }
+
+        @keyframes matrix-fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+
+        /* Floating Particles */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .particle {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(var(--drift)) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Starfield */
+        .starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            animation: star-zoom linear infinite;
+        }
+
+        @keyframes star-zoom {
+            from {
+                transform: translateZ(-1000px) scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: translateZ(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Bouncing Balls */
+        .bouncing-balls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ball {
+            position: absolute;
+            border-radius: 50%;
+            animation: bounce ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-80vh);
+            }
+        }
+
+        /* Wave Effect */
+        .waves {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(30, 144, 255, 0.3), transparent);
+            animation: wave linear infinite;
+        }
+
+        @keyframes wave {
+            0% {
+                transform: translateX(0) translateY(0);
+            }
+            50% {
+                transform: translateX(-25%) translateY(-10px);
+            }
+            100% {
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Clock */
+        .clock {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 120px;
+            font-weight: bold;
+            text-shadow: 0 0 30px rgba(255,255,255,0.8);
+            z-index: 100;
+        }
+
+        .date {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 40px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.6);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="screensaver-container"></div>
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="date" id="date">Lunedì, 1 Gennaio 2025</div>
+
+    <script>
+        // Array of screensaver types
+        const screensavers = ['matrix', 'particles', 'starfield', 'balls', 'waves'];
+
+        // Pick random screensaver
+        const currentScreensaver = screensavers[Math.floor(Math.random() * screensavers.length)];
+        const container = document.getElementById('screensaver-container');
+
+        // Initialize screensaver
+        function initScreensaver() {
+            switch(currentScreensaver) {
+                case 'matrix':
+                    initMatrix();
+                    break;
+                case 'particles':
+                    initParticles();
+                    break;
+                case 'starfield':
+                    initStarfield();
+                    break;
+                case 'balls':
+                    initBouncingBalls();
+                    break;
+                case 'waves':
+                    initWaves();
+                    break;
+            }
+        }
+
+        // Matrix Rain
+        function initMatrix() {
+            container.className = 'matrix-rain';
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+            const columns = Math.floor(window.innerWidth / 20);
+
+            for (let i = 0; i < columns; i++) {
+                const column = document.createElement('div');
+                column.className = 'matrix-column';
+                column.style.left = (i * 20) + 'px';
+                column.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                column.style.animationDelay = (Math.random() * 2) + 's';
+
+                let text = '';
+                for (let j = 0; j < 50; j++) {
+                    text += chars[Math.floor(Math.random() * chars.length)] + '\n';
+                }
+                column.textContent = text;
+                container.appendChild(column);
+            }
+        }
+
+        // Floating Particles
+        function initParticles() {
+            container.className = 'particles';
+
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+
+                const size = Math.random() * 5 + 2;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDuration = (Math.random() * 10 + 5) + 's';
+                particle.style.animationDelay = (Math.random() * 5) + 's';
+                particle.style.setProperty('--drift', (Math.random() * 200 - 100) + 'px');
+
+                container.appendChild(particle);
+            }
+        }
+
+        // Starfield
+        function initStarfield() {
+            container.className = 'starfield';
+
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+
+                const size = Math.random() * 3 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDuration = (Math.random() * 3 + 1) + 's';
+                star.style.animationDelay = (Math.random() * 3) + 's';
+
+                container.appendChild(star);
+            }
+        }
+
+        // Bouncing Balls
+        function initBouncingBalls() {
+            container.className = 'bouncing-balls';
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe'];
+
+            for (let i = 0; i < 10; i++) {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+
+                const size = Math.random() * 60 + 40;
+                ball.style.width = size + 'px';
+                ball.style.height = size + 'px';
+                ball.style.left = Math.random() * (window.innerWidth - size) + 'px';
+                ball.style.background = colors[Math.floor(Math.random() * colors.length)];
+                ball.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                ball.style.animationDelay = (Math.random() * 2) + 's';
+                ball.style.boxShadow = `0 0 30px ${colors[Math.floor(Math.random() * colors.length)]}`;
+
+                container.appendChild(ball);
+            }
+        }
+
+        // Waves
+        function initWaves() {
+            container.className = 'waves';
+
+            for (let i = 0; i < 3; i++) {
+                const wave = document.createElement('div');
+                wave.className = 'wave';
+                wave.style.animationDuration = (10 + i * 2) + 's';
+                wave.style.animationDelay = (i * 2) + 's';
+                wave.style.opacity = (0.3 - i * 0.1);
+
+                container.appendChild(wave);
+            }
+        }
+
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+
+            // Time
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+            // Date
+            const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+            const months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                          'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+
+            const dayName = days[now.getDay()];
+            const day = now.getDate();
+            const month = months[now.getMonth()];
+            const year = now.getFullYear();
+
+            document.getElementById('date').textContent = `${dayName}, ${day} ${month} ${year}`;
+        }
+
+        // Initialize
+        initScreensaver();
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
