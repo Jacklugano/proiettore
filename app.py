@@ -50,11 +50,28 @@ def restore_session_on_startup():
         logger.info("Checking for saved playlist...")
         saved_playlist = player.load_playlist_from_file()
         if saved_playlist:
-            logger.info(f"Loading saved playlist with {len(saved_playlist)} videos...")
-            if player.load_playlist(saved_playlist):
-                logger.info("Saved playlist loaded successfully")
+            logger.info(f"Found saved playlist with {len(saved_playlist)} videos")
+
+            # Check if files still exist
+            existing_videos = [v for v in saved_playlist if os.path.exists(v)]
+            if not existing_videos:
+                logger.warning(f"None of the {len(saved_playlist)} saved videos exist anymore")
             else:
-                logger.warning("Failed to load saved playlist")
+                logger.info(f"Loading saved playlist ({len(existing_videos)}/{len(saved_playlist)} videos exist)...")
+                if player.load_playlist(existing_videos):
+                    logger.info("✅ Saved playlist loaded successfully")
+
+                    # AUTO-START: Start playing first video automatically
+                    logger.info("🎬 AUTO-STARTING playback from saved playlist...")
+                    if player.play(player.playlist[0]):
+                        logger.info(f"✅ Started playing: {os.path.basename(player.playlist[0])}")
+                        logger.info(f"🔄 Loop enabled - playlist will continue automatically")
+                    else:
+                        logger.error("❌ Failed to start playback from saved playlist")
+                else:
+                    logger.warning("Failed to load saved playlist")
+        else:
+            logger.info("No saved playlist found")
 
         if session_restored:
             logger.info("Session restored successfully")
