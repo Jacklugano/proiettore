@@ -544,13 +544,32 @@ class VideoPlayer:
                     # Process has finished, check exit code
                     exit_code = self.process.returncode
 
+                    # Read stderr to see MPV errors
+                    stderr_output = ""
+                    if self.process.stderr:
+                        try:
+                            stderr_output = self.process.stderr.read().decode('utf-8', errors='ignore')
+                        except:
+                            pass
+
+                    logger.warning(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    logger.warning(f"🎬 MPV PROCESS TERMINATED")
+                    logger.warning(f"   Video: {video_name}")
+                    logger.warning(f"   Exit code: {exit_code}")
+                    logger.warning(f"   Current index: {self.current_index + 1}/{len(self.playlist)}")
+                    logger.warning(f"   Loop enabled: {self.loop_playlist}")
+                    logger.warning(f"   Playlist length: {len(self.playlist)}")
+
+                    if stderr_output:
+                        logger.error(f"📝 MPV stderr (last 20 lines):")
+                        for line in stderr_output.split('\n')[-20:]:
+                            if line.strip():
+                                logger.error(f"     {line}")
+
                     if exit_code == 0:
-                        # Normal termination (video finished successfully)
-                        logger.info(f"✅ Video finished successfully: {video_name}")
+                        logger.info(f"✅ Video finished normally")
                     else:
-                        # Error termination (video playback error)
-                        logger.error(f"❌ Video playback error (exit code {exit_code}): {video_name}")
-                        logger.warning(f"Skipping to next video due to playback error")
+                        logger.error(f"❌ Video error (exit code {exit_code})")
 
                     # Reset counters
                     self.position_stuck_count = 0
@@ -558,18 +577,33 @@ class VideoPlayer:
 
                     # Only auto-play next if loop is enabled and there's a playlist
                     if self.loop_playlist and self.playlist:
-                        logger.info("▶️  Auto-playing next video in playlist...")
-                        # Use play_next which handles looping with modulo
-                        # Pass from_monitor=True to avoid restarting this monitor thread
-                        self.play_next(from_monitor=True)
-                        # Don't break - continue monitoring the new process
-                        logger.debug("Continuing to monitor next video...")
+                        next_index = (self.current_index + 1) % len(self.playlist)
+                        logger.info(f"▶️  AUTO-PLAY ENABLED - Attempting to play next video")
+                        logger.info(f"   Next index will be: {next_index + 1}/{len(self.playlist)}")
+
+                        try:
+                            result = self.play_next(from_monitor=True)
+                            logger.info(f"   ✓ play_next() returned: {result}")
+                            if result:
+                                logger.info(f"   ✅ Successfully started next video!")
+                            else:
+                                logger.error(f"   ❌ play_next() returned False - PLAYBACK FAILED!")
+                                logger.error(f"   This is why you see the terminal!")
+                        except Exception as e:
+                            logger.error(f"   ❌ EXCEPTION in play_next(): {e}")
+                            import traceback
+                            logger.error(f"   Full traceback:")
+                            for line in traceback.format_exc().split('\n'):
+                                logger.error(f"     {line}")
                     else:
-                        # No loop or no playlist, just stop
-                        logger.info("Playback finished, no auto-play")
+                        logger.warning(f"⏹️  AUTO-PLAY DISABLED - Stopping playback")
+                        logger.warning(f"   loop_playlist={self.loop_playlist}")
+                        logger.warning(f"   playlist_length={len(self.playlist)}")
                         self.is_playing = False
                         self._set_black_screen()
                         break
+
+                    logger.warning(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
                 # 📊 PRIORITY 3: Update position for status display
                 elif self.process and self.is_playing:
