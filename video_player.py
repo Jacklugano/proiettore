@@ -53,6 +53,9 @@ class VideoPlayer:
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
 
+        # Hide terminal permanently on startup
+        self._hide_terminal_permanently()
+
         # Set black screen on initialization
         self._set_black_screen()
 
@@ -475,37 +478,79 @@ class VideoPlayer:
             return self.process.poll() is None
         return False
 
+    def _hide_terminal_permanently(self):
+        """
+        Hide terminal cursor and clear screen permanently on startup.
+        This prevents the terminal from ever being visible during transitions.
+        """
+        try:
+            logger.info("Hiding terminal permanently on all TTYs...")
+
+            # Hide cursor and clear screen on all TTYs
+            for tty in ['/dev/tty0', '/dev/tty1', '/dev/console']:
+                try:
+                    subprocess.run([
+                        'sh', '-c',
+                        # Clear screen, hide cursor permanently, disable screen blanking timeout
+                        f'printf "\\033[2J\\033[H\\033[?25l" > {tty} 2>/dev/null; '
+                        f'setterm -cursor off -blank 0 -powerdown 0 > {tty} 2>/dev/null'
+                    ], check=False, timeout=2)
+                    logger.debug(f"Terminal hidden on {tty}")
+                except Exception as e:
+                    logger.debug(f"Could not hide terminal on {tty}: {e}")
+
+            logger.info("Terminal permanently hidden")
+        except Exception as e:
+            logger.error(f"Error hiding terminal permanently: {e}")
+
     def _set_black_screen(self):
         """Set black screen on TTY (hide console, show black)"""
         try:
-            # Clear the screen and hide cursor
-            subprocess.run([
-                'sh', '-c',
-                'setterm -cursor off -blank force > /dev/tty0 2>/dev/null || true'
-            ], check=False, timeout=1)
+            # Multiple approaches to ensure terminal is completely hidden:
 
-            # Alternative: blank the framebuffer if setterm doesn't work
-            try:
-                with open('/sys/class/graphics/fb0/blank', 'w') as f:
-                    f.write('1')  # 1 = blank/black screen
-            except:
-                pass
+            # 1. Clear terminal, hide cursor, and blank screen on all TTYs
+            for tty in ['/dev/tty0', '/dev/tty1', '/dev/console']:
+                try:
+                    # Use ANSI escape codes for maximum compatibility:
+                    # \033[2J - Clear entire screen
+                    # \033[H - Move cursor to home (0,0)
+                    # \033[?25l - Hide cursor
+                    # Also use setterm for additional terminal control
+                    subprocess.run([
+                        'sh', '-c',
+                        f'printf "\\033[2J\\033[H\\033[?25l" > {tty} 2>/dev/null; '
+                        f'setterm -cursor off > {tty} 2>/dev/null; '
+                        f'setterm -blank force > {tty} 2>/dev/null'
+                    ], check=False, timeout=1)
+                except:
+                    pass
 
-            logger.debug("Black screen activated")
+            # 2. Blank all framebuffers
+            for fb in ['/sys/class/graphics/fb0/blank', '/sys/class/graphics/fb1/blank']:
+                try:
+                    if os.path.exists(fb):
+                        with open(fb, 'w') as f:
+                            f.write('1')  # 1 = blank/black screen
+                except:
+                    pass
+
+            logger.debug("Black screen activated (terminal hidden)")
         except Exception as e:
             logger.debug(f"Could not set black screen: {e}")
 
     def _clear_black_screen(self):
-        """Clear black screen (unblank)"""
+        """Clear black screen (unblank framebuffer for video playback)"""
         try:
-            # Unblank the framebuffer
-            try:
-                with open('/sys/class/graphics/fb0/blank', 'w') as f:
-                    f.write('0')  # 0 = unblank
-            except:
-                pass
+            # Unblank all framebuffers to allow video display
+            for fb in ['/sys/class/graphics/fb0/blank', '/sys/class/graphics/fb1/blank']:
+                try:
+                    if os.path.exists(fb):
+                        with open(fb, 'w') as f:
+                            f.write('0')  # 0 = unblank (allow display)
+                except:
+                    pass
 
-            logger.debug("Black screen cleared")
+            logger.debug("Black screen cleared (framebuffer unblanked for video)")
         except Exception as e:
             logger.debug(f"Could not clear black screen: {e}")
 
