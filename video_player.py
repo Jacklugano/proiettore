@@ -825,7 +825,18 @@ class VideoPlayer:
                     logger.warning(f"   Loop enabled: {self.loop_playlist}")
                     logger.warning(f"   Playlist length: {len(self.playlist)}")
 
+                    # Check for common error patterns in stderr
+                    hdmi_error = False
                     if stderr_output:
+                        stderr_lower = stderr_output.lower()
+                        # Check for display/HDMI related errors
+                        if any(keyword in stderr_lower for keyword in [
+                            'could not open', 'failed to open', 'no video', 'drm',
+                            'cannot open', 'no suitable', 'video output'
+                        ]):
+                            hdmi_error = True
+                            logger.error(f"⚠️  DETECTED DISPLAY/HDMI ERROR IN MPV OUTPUT!")
+
                         logger.error(f"📝 MPV stderr (last 20 lines):")
                         for line in stderr_output.split('\n')[-20:]:
                             if line.strip():
@@ -836,6 +847,19 @@ class VideoPlayer:
                     else:
                         logger.error(f"❌ Video error (exit code {exit_code})")
 
+                        # If error and looks like HDMI/display problem, check HDMI status
+                        if hdmi_error or exit_code != 0:
+                            hdmi_status = self.hdmi_manager.is_hdmi_connected()
+                            logger.warning(f"🔌 HDMI Status Check: {'Connected' if hdmi_status else 'DISCONNECTED'}")
+
+                            if not hdmi_status:
+                                logger.error(f"🚫 HDMI NOT CONNECTED - Cannot continue auto-play!")
+                                logger.error(f"   Please connect HDMI display or turn on the Beamer/Projector")
+                                logger.error(f"   Stopping auto-play to prevent infinite skip loop")
+                                self.is_playing = False
+                                self._set_black_screen()
+                                break
+
                     # Reset counters
                     self.position_stuck_count = 0
                     self.last_position_update = 0.0
@@ -843,6 +867,18 @@ class VideoPlayer:
                     # Only auto-play next if loop is enabled and there's a playlist
                     if self.loop_playlist and self.playlist:
                         next_index = (self.current_index + 1) % len(self.playlist)
+
+                        # DOUBLE CHECK HDMI before attempting next video
+                        hdmi_connected = self.hdmi_manager.is_hdmi_connected()
+                        logger.info(f"🔌 Pre-play HDMI check: {'✅ Connected' if hdmi_connected else '❌ Disconnected'}")
+
+                        if not hdmi_connected:
+                            logger.error(f"🚫 HDMI DISCONNECTED - Stopping auto-play")
+                            logger.error(f"   Connect HDMI display and restart playback manually")
+                            self.is_playing = False
+                            self._set_black_screen()
+                            break
+
                         logger.info(f"▶️  AUTO-PLAY ENABLED - Attempting to play next video")
                         logger.info(f"   Next index will be: {next_index + 1}/{len(self.playlist)}")
 
@@ -858,13 +894,21 @@ class VideoPlayer:
                                 logger.info(f"   ✅ Successfully started next video!")
                             else:
                                 logger.error(f"   ❌ play_next() returned False - PLAYBACK FAILED!")
-                                logger.error(f"   This is why you see the terminal!")
+                                logger.error(f"   Possible causes: File not found, HDMI disconnected, or video format issue")
+                                logger.error(f"   Stopping auto-play to prevent infinite loop")
+                                self.is_playing = False
+                                self._set_black_screen()
+                                break
                         except Exception as e:
                             logger.error(f"   ❌ EXCEPTION in play_next(): {e}")
                             import traceback
                             logger.error(f"   Full traceback:")
                             for line in traceback.format_exc().split('\n'):
                                 logger.error(f"     {line}")
+                            logger.error(f"   Stopping auto-play due to exception")
+                            self.is_playing = False
+                            self._set_black_screen()
+                            break
                     else:
                         logger.warning(f"⏹️  AUTO-PLAY DISABLED - Stopping playback")
                         logger.warning(f"   loop_playlist={self.loop_playlist}")
