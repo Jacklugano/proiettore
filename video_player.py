@@ -50,6 +50,10 @@ class VideoPlayer:
         self.screensaver_enabled = True  # Enable/disable screensaver feature
         self.screensaver_delay = 2  # Seconds to wait before showing screensaver after stop
 
+        # Black screen framebuffer process
+        self.black_screen_process: Optional[subprocess.Popen] = None
+        self.black_image_path = os.path.join(os.path.dirname(__file__), 'black.png')
+
         # Clear cache on initialization (fresh start)
         self.video_cache.clear_cache()
 
@@ -504,7 +508,7 @@ class VideoPlayer:
             logger.error(f"Error hiding terminal permanently: {e}")
 
     def _set_black_screen(self):
-        """Set black screen on TTY (hide console, show black)"""
+        """Set black screen on TTY (hide console, show black) using framebuffer"""
         try:
             # Multiple approaches to ensure terminal is completely hidden:
 
@@ -515,7 +519,6 @@ class VideoPlayer:
                     # \033[2J - Clear entire screen
                     # \033[H - Move cursor to home (0,0)
                     # \033[?25l - Hide cursor
-                    # Also use setterm for additional terminal control
                     subprocess.run([
                         'sh', '-c',
                         f'printf "\\033[2J\\033[H\\033[?25l" > {tty} 2>/dev/null; '
@@ -525,22 +528,72 @@ class VideoPlayer:
                 except:
                     pass
 
-            # 2. Blank all framebuffers
-            for fb in ['/sys/class/graphics/fb0/blank', '/sys/class/graphics/fb1/blank']:
-                try:
-                    if os.path.exists(fb):
-                        with open(fb, 'w') as f:
-                            f.write('1')  # 1 = blank/black screen
-                except:
-                    pass
+            # 2. Show black image on framebuffer using fbi
+            # This completely covers the terminal with a black image
+            self._start_black_screen_display()
 
-            logger.debug("Black screen activated (terminal hidden)")
+            logger.debug("Black screen activated (terminal hidden with framebuffer)")
         except Exception as e:
             logger.debug(f"Could not set black screen: {e}")
 
-    def _clear_black_screen(self):
-        """Clear black screen (unblank framebuffer for video playback)"""
+    def _start_black_screen_display(self):
+        """Display black image on framebuffer to completely hide terminal"""
         try:
+            # Stop any existing black screen display
+            self._stop_black_screen_display()
+
+            # Check if black image exists, create if not
+            if not os.path.exists(self.black_image_path):
+                logger.info("Creating black screen image...")
+                # Try to create black image with ImageMagick
+                try:
+                    subprocess.run([
+                        'convert', '-size', '1920x1080', 'xc:black', self.black_image_path
+                    ], check=True, timeout=5, capture_output=True)
+                    logger.info(f"Black image created at {self.black_image_path}")
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    logger.warning("ImageMagick not available, using framebuffer blank instead")
+                    return
+
+            # Use fbi to display black image on framebuffer
+            # fbi writes directly to framebuffer, completely hiding terminal
+            try:
+                self.black_screen_process = subprocess.Popen([
+                    'fbi',
+                    '--noverbose',  # No verbose output
+                    '--autozoom',   # Auto zoom to fit screen
+                    '-T', '1',      # Use framebuffer /dev/fb0 via tty1
+                    self.black_image_path
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                logger.debug(f"Black screen display started (PID: {self.black_screen_process.pid})")
+            except FileNotFoundError:
+                logger.warning("fbi not installed, cannot display black image on framebuffer")
+
+        except Exception as e:
+            logger.error(f"Error starting black screen display: {e}")
+
+    def _stop_black_screen_display(self):
+        """Stop black screen framebuffer display"""
+        try:
+            if self.black_screen_process:
+                if self.black_screen_process.poll() is None:
+                    try:
+                        self.black_screen_process.terminate()
+                        self.black_screen_process.wait(timeout=1)
+                    except subprocess.TimeoutExpired:
+                        self.black_screen_process.kill()
+                        self.black_screen_process.wait(timeout=1)
+                self.black_screen_process = None
+                logger.debug("Black screen display stopped")
+        except Exception as e:
+            logger.error(f"Error stopping black screen display: {e}")
+
+    def _clear_black_screen(self):
+        """Clear black screen (stop fbi and unblank framebuffer for video playback)"""
+        try:
+            # Stop black screen framebuffer display (fbi)
+            self._stop_black_screen_display()
+
             # Unblank all framebuffers to allow video display
             for fb in ['/sys/class/graphics/fb0/blank', '/sys/class/graphics/fb1/blank']:
                 try:
