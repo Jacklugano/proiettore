@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 class VideoPlayer:
     """Controls video playback using MPV player"""
 
-    def __init__(self, volume: int = 100):
+    def __init__(self, volume: int = 100, audio_output: str = 'hdmi'):
         self.process: Optional[subprocess.Popen] = None
         self.current_video: Optional[str] = None
         self.playlist: List[str] = []
         self.current_index: int = 0
         self.volume = volume
+        self.audio_output = audio_output  # 'hdmi' or 'jack'
         self.is_playing = False
         self.is_paused = False
         self.hdmi_manager = HDMIManager()
@@ -136,13 +137,28 @@ class VideoPlayer:
             # Uses DRM for direct framebuffer access (bypasses X11/desktop)
             # This ensures video is displayed fullscreen without desktop visible
             # Use full path for systemd compatibility
+
+            # Configure audio device based on user preference
+            if self.audio_output == 'jack':
+                # Raspberry Pi 3.5mm jack audio
+                # Try multiple ALSA devices for jack compatibility
+                audio_device = 'alsa:device=hw:Headphones'
+                audio_fallback = 'alsa,pulse,null'
+                logger.info("Using audio output: 3.5mm Jack")
+            else:  # hdmi
+                # HDMI audio (default)
+                audio_device = 'alsa:device=hw:vc4hdmi'
+                audio_fallback = 'alsa,pulse,null'
+                logger.info("Using audio output: HDMI")
+
             cmd = [
                 '/usr/bin/mpv',
                 '--fs',  # Fullscreen
                 '--no-osc',  # No on-screen controller
                 '--no-input-default-bindings',  # Disable keyboard controls
                 f'--volume={self.volume}',
-                '--ao=alsa,pulse,null',  # Audio: try ALSA, PulseAudio, then NULL (no crash!)
+                f'--audio-device={audio_device}',  # Preferred audio device
+                f'--ao={audio_fallback}',  # Fallback chain if preferred device fails
                 '--audio-fallback-to-null',  # Fallback to null audio if device fails
                 '--audio-channels=stereo',  # Force stereo output
                 '--no-audio-display',  # Don't show audio device messages

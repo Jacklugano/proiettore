@@ -426,6 +426,16 @@
                             <div class="card-body">
                                 <form id="player-config-form">
                                     <div class="mb-3">
+                                        <label for="config-audio-output" class="form-label">
+                                            <i class="bi bi-volume-up"></i> Uscita Audio
+                                        </label>
+                                        <select class="form-select" id="config-audio-output">
+                                            <option value="hdmi">HDMI (audio tramite proiettore/TV)</option>
+                                            <option value="jack">Jack 3.5mm (casse esterne)</option>
+                                        </select>
+                                        <small class="text-muted">Seleziona dove inviare l'audio</small>
+                                    </div>
+                                    <div class="mb-3">
                                         <label for="config-volume" class="form-label">
                                             Volume Predefinito: <span id="config-volume-value">100</span>%
                                         </label>

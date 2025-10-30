@@ -121,10 +121,11 @@ class ConfigManager:
             'volume': int(self.get_setting('volume', '100')),
             'loop_playlist': self.get_setting('loop_playlist', 'false') == 'true',
             'auto_start': self.get_setting('auto_start', 'false') == 'true',
-            'video_extensions': self.get_setting('video_extensions', 'mp4,avi,mkv,mov,wmv,flv,webm')
+            'video_extensions': self.get_setting('video_extensions', 'mp4,avi,mkv,mov,wmv,flv,webm'),
+            'audio_output': self.get_setting('audio_output', 'hdmi')  # hdmi or jack
         }
 
-    def set_player_config(self, volume: int = None, loop_playlist: bool = None, auto_start: bool = None, video_extensions: str = None) -> bool:
+    def set_player_config(self, volume: int = None, loop_playlist: bool = None, auto_start: bool = None, video_extensions: str = None, audio_output: str = None) -> bool:
         """Set player configuration"""
         try:
             if volume is not None:
@@ -138,6 +139,14 @@ class ConfigManager:
 
             if video_extensions is not None:
                 self.set_setting('video_extensions', video_extensions)
+
+            if audio_output is not None:
+                # Validate audio output value
+                if audio_output in ['hdmi', 'jack']:
+                    self.set_setting('audio_output', audio_output)
+                else:
+                    logger.warning(f"Invalid audio_output value: {audio_output}, using default 'hdmi'")
+                    self.set_setting('audio_output', 'hdmi')
 
             logger.info("Player configuration updated")
             return True

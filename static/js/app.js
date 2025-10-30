@@ -880,6 +880,7 @@ class ProiettoreApp {
             // Don't set password field
 
             // Populate player config form
+            document.getElementById('config-audio-output').value = config.player.audio_output || 'hdmi';
             document.getElementById('config-volume').value = config.player.volume || 100;
             document.getElementById('config-volume-value').textContent = config.player.volume || 100;
             document.getElementById('config-video-extensions').value = config.player.video_extensions || 'mp4,avi,mkv,mov,wmv,flv,webm';
@@ -1161,6 +1162,7 @@ class ProiettoreApp {
     }
 
     async savePlayerConfig() {
+        const audioOutput = document.getElementById('config-audio-output').value;
         const volume = parseInt(document.getElementById('config-volume').value);
         const videoExtensions = document.getElementById('config-video-extensions').value;
         const loopPlaylist = document.getElementById('config-loop-playlist').checked;
@@ -1171,6 +1173,7 @@ class ProiettoreApp {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    audio_output: audioOutput,
                     volume: volume,
                     video_extensions: videoExtensions,
                     loop_playlist: loopPlaylist,
@@ -1181,7 +1184,8 @@ class ProiettoreApp {
             const data = await response.json();
 
             if (data.success) {
-                alert('Configurazione player salvata con successo!');
+                const audioName = audioOutput === 'hdmi' ? 'HDMI' : 'Jack 3.5mm';
+                alert(`Configurazione player salvata con successo!\n\nUscita audio: ${audioName}\nIl cambio audio avrà effetto dal prossimo video.`);
                 // Update the main volume slider as well
                 document.getElementById('volume-slider').value = volume;
                 document.getElementById('volume-value').textContent = volume;

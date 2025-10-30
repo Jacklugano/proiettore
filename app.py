@@ -31,7 +31,15 @@ app.config.from_object(Config)
 
 # Initialize components
 config_manager = ConfigManager()
-player = VideoPlayer(volume=Config.VOLUME)
+
+# Load player configuration
+player_config = config_manager.get_player_config()
+player = VideoPlayer(
+    volume=player_config.get('volume', Config.VOLUME),
+    audio_output=player_config.get('audio_output', 'hdmi')
+)
+player.loop_playlist = player_config.get('loop_playlist', True)
+
 network = NetworkManager()
 scheduler = PlaybackScheduler()
 playlist_manager = PlaylistManager()
@@ -615,18 +623,27 @@ def api_set_player_config():
     loop_playlist = data.get('loop_playlist')
     auto_start = data.get('auto_start')
     video_extensions = data.get('video_extensions')
+    audio_output = data.get('audio_output')
 
     # Save to database
     success = config_manager.set_player_config(
         volume=int(volume) if volume is not None else None,
         loop_playlist=loop_playlist,
         auto_start=auto_start,
-        video_extensions=video_extensions
+        video_extensions=video_extensions,
+        audio_output=audio_output
     )
 
-    if success and volume is not None:
+    if success:
         # Update player volume immediately
-        player.set_volume(int(volume))
+        if volume is not None:
+            player.set_volume(int(volume))
+
+        # Update audio output immediately (requires restart of playback)
+        if audio_output is not None:
+            player.audio_output = audio_output
+            logger.info(f"Audio output changed to: {audio_output}")
+            # Note: Change will take effect on next video playback
 
     return jsonify({'success': success})
 
