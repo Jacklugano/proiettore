@@ -137,19 +137,42 @@ class ProiettoreApp {
             // Update playback progress and metadata
             this.updatePlaybackProgress(player);
 
-            // Update HDMI status if available
+            // Update HDMI status (always update, even if not available)
             if (data.hdmi) {
                 this.updateHDMIStatus(data.hdmi);
+            } else {
+                // Default to unknown state if not available
+                this.updateHDMIStatus({ connected: false });
             }
 
         } catch (error) {
             console.error('Error updating status:', error);
             document.getElementById('status-indicator').innerHTML =
                 '<span class="badge bg-danger">Errore</span>';
+
+            // Show HDMI as unknown on error
+            const hdmiStatusBadge = document.getElementById('hdmi-status');
+            if (hdmiStatusBadge) {
+                hdmiStatusBadge.className = 'badge bg-secondary';
+                hdmiStatusBadge.innerHTML = '<i class="bi bi-question-circle"></i> Sconosciuto';
+            }
         }
     }
 
     updateHDMIStatus(hdmiStatus) {
+        // Update HDMI status badge
+        const hdmiStatusBadge = document.getElementById('hdmi-status');
+
+        if (hdmiStatusBadge) {
+            if (hdmiStatus.connected) {
+                hdmiStatusBadge.className = 'badge bg-success';
+                hdmiStatusBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Collegato';
+            } else {
+                hdmiStatusBadge.className = 'badge bg-danger';
+                hdmiStatusBadge.innerHTML = '<i class="bi bi-x-circle-fill"></i> Non collegato';
+            }
+        }
+
         // Show HDMI warning in player status if not connected
         const playerStatusDiv = document.querySelector('.player-status');
         let hdmiWarning = document.getElementById('hdmi-warning');
