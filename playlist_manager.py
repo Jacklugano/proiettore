@@ -12,7 +12,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Base directory for all playlists
-PLAYLISTS_BASE_DIR = os.path.join(os.path.dirname(__file__), 'playlists')
+# Use absolute path from project root to ensure it's always accessible
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+PLAYLISTS_BASE_DIR = os.path.join(PROJECT_ROOT, 'playlists')
+
+logger.info(f"Playlist base directory: {PLAYLISTS_BASE_DIR}")
 
 
 class PlaylistManager:
@@ -26,10 +30,22 @@ class PlaylistManager:
     def _ensure_base_dir(self):
         """Ensure playlists base directory exists"""
         try:
-            os.makedirs(self.base_dir, exist_ok=True)
-            logger.info(f"Playlists directory ready: {self.base_dir}")
+            os.makedirs(self.base_dir, mode=0o755, exist_ok=True)
+
+            # Verify directory is writable
+            test_file = os.path.join(self.base_dir, '.test')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+                logger.info(f"✅ Playlists directory ready: {self.base_dir}")
+            except Exception as e:
+                logger.error(f"❌ Playlists directory not writable: {self.base_dir}")
+                logger.error(f"   Error: {e}")
+
         except Exception as e:
-            logger.error(f"Error creating playlists directory: {e}")
+            logger.error(f"❌ Error creating playlists directory: {self.base_dir}")
+            logger.error(f"   Error: {e}")
 
     def _sanitize_name(self, name: str) -> str:
         """Sanitize playlist name for filesystem"""

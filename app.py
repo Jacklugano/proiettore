@@ -2,6 +2,8 @@
 Main Flask application for Proiettore video player
 """
 import os
+import time
+import threading
 import logging
 from flask import Flask, render_template, jsonify, request, send_from_directory, send_file
 from config import Config
@@ -34,11 +36,54 @@ network = NetworkManager()
 scheduler = PlaybackScheduler()
 playlist_manager = PlaylistManager()
 
+# Cache for video list (to avoid blocking on slow network)
+video_cache = {
+    'videos': [],
+    'last_update': 0,
+    'loading': False
+}
+video_cache_lock = threading.Lock()
+
 
 def scheduled_play(video_path: str):
     """Callback for scheduled playback"""
     logger.info(f"Scheduled playback: {video_path}")
     player.play(video_path)
+
+
+def load_videos_background():
+    """Load videos in background thread (non-blocking)"""
+    global video_cache
+
+    with video_cache_lock:
+        if video_cache['loading']:
+            logger.debug("Video loading already in progress, skipping")
+            return
+        video_cache['loading'] = True
+
+    try:
+        logger.info("Loading videos in background...")
+        videos = network.get_video_files()
+
+        video_list = []
+        for video in videos:
+            video_list.append({
+                'path': video,
+                'name': os.path.basename(video),
+                'size': os.path.getsize(video) if os.path.exists(video) else 0
+            })
+
+        with video_cache_lock:
+            video_cache['videos'] = video_list
+            video_cache['last_update'] = time.time()
+            video_cache['loading'] = False
+
+        logger.info(f"✅ Loaded {len(video_list)} videos")
+
+    except Exception as e:
+        logger.error(f"Error loading videos in background: {e}")
+        with video_cache_lock:
+            video_cache['loading'] = False
 
 
 # Restore session on startup
@@ -160,7 +205,37 @@ def api_preview():
 
 @app.route('/api/videos')
 def api_videos():
-    """Get list of available videos"""
+    """Get list of available videos (uses cache, non-blocking)"""
+    global video_cache
+
+    # Check if cache is stale (older than 30 seconds) or empty
+    cache_age = time.time() - video_cache['last_update']
+    is_stale = cache_age > 30 or len(video_cache['videos']) == 0
+
+    # If stale and not already loading, trigger background refresh
+    if is_stale and not video_cache['loading']:
+        logger.info("Video cache stale, refreshing in background...")
+        threading.Thread(target=load_videos_background, daemon=True).start()
+
+    # Return cached videos immediately (might be empty on first load)
+    with video_cache_lock:
+        video_list = video_cache['videos'].copy()
+
+    # Return as array for frontend compatibility
+    return jsonify(video_list)
+
+
+@app.route('/api/videos/refresh', methods=['POST'])
+def api_videos_refresh():
+    """Force refresh video list"""
+    threading.Thread(target=load_videos_background, daemon=True).start()
+    return jsonify({'success': True, 'message': 'Refresh started'})
+
+
+# Kept for backward compatibility, but not used in new code
+@app.route('/api/videos/old')
+def api_videos_old():
+    """Get list of available videos (OLD BLOCKING VERSION)"""
     videos = network.get_video_files()
 
     # Convert to relative paths for display
@@ -589,18 +664,16 @@ def initialize_app():
     scheduler.start()
     scheduler.load_schedules(scheduled_play)
 
-    # Auto-start if configured
-    auto_start = player_config.get('auto_start', Config.AUTO_START)
-    if auto_start:
-        videos = network.get_video_files()
-        if videos:
-            logger.info("Auto-start enabled, loading playlist...")
-            player.load_playlist(videos)
-            loop_playlist = player_config.get('loop_playlist', Config.LOOP_PLAYLIST)
-            if loop_playlist:
-                player.play(videos[0])
+    # Start loading videos in background (non-blocking)
+    logger.info("Starting background video loading...")
+    threading.Thread(target=load_videos_background, daemon=True).start()
 
-    logger.info("Proiettore initialized successfully!")
+    logger.info("✅ Proiettore initialized successfully!")
+    logger.info("🎬 Frontend available immediately at http://{}:{}".format(
+        Config.FLASK_HOST or '0.0.0.0',
+        Config.FLASK_PORT
+    ))
+    logger.info("📺 Videos loading in background...")
 
 
 def shutdown_app():
