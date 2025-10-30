@@ -142,7 +142,8 @@ class VideoPlayer:
                 '--no-osc',  # No on-screen controller
                 '--no-input-default-bindings',  # Disable keyboard controls
                 f'--volume={self.volume}',
-                '--audio-device=auto',  # Auto select audio device
+                '--ao=alsa,pulse,',  # Audio output: try ALSA, fallback to PulseAudio, then silent
+                '--audio-channels=stereo',  # Force stereo output
                 '--vo=drm',  # DRM video output - direct to framebuffer, bypasses X11
                 '--hwdec=auto',  # Hardware decode
                 '--drm-device=/dev/dri/card1',  # Use DRM card1 (where HDMI is connected)
