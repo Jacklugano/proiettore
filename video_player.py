@@ -508,33 +508,71 @@ class VideoPlayer:
             logger.error(f"Error hiding terminal permanently: {e}")
 
     def _set_black_screen(self):
-        """Set black screen on TTY (hide console, show black) using framebuffer"""
+        """Set black screen - INSTANT framebuffer fill with black"""
         try:
-            # Multiple approaches to ensure terminal is completely hidden:
+            # 1. INSTANT: Write black directly to framebuffer (no delay)
+            self._fill_framebuffer_black()
 
-            # 1. Clear terminal, hide cursor, and blank screen on all TTYs
+            # 2. Clear terminal and hide cursor on all TTYs
             for tty in ['/dev/tty0', '/dev/tty1', '/dev/console']:
                 try:
-                    # Use ANSI escape codes for maximum compatibility:
-                    # \033[2J - Clear entire screen
-                    # \033[H - Move cursor to home (0,0)
-                    # \033[?25l - Hide cursor
                     subprocess.run([
                         'sh', '-c',
                         f'printf "\\033[2J\\033[H\\033[?25l" > {tty} 2>/dev/null; '
-                        f'setterm -cursor off > {tty} 2>/dev/null; '
-                        f'setterm -blank force > {tty} 2>/dev/null'
-                    ], check=False, timeout=1)
+                        f'setterm -cursor off > {tty} 2>/dev/null'
+                    ], check=False, timeout=0.5)
                 except:
                     pass
 
-            # 2. Show black image on framebuffer using fbi
-            # This completely covers the terminal with a black image
-            self._start_black_screen_display()
-
-            logger.debug("Black screen activated (terminal hidden with framebuffer)")
+            logger.debug("Black screen activated (instant framebuffer fill)")
         except Exception as e:
             logger.debug(f"Could not set black screen: {e}")
+
+    def _fill_framebuffer_black(self):
+        """Fill framebuffer with black color - INSTANT, no process startup delay"""
+        try:
+            # Write black pixels directly to framebuffer device
+            # This is INSTANT - no process startup time like fbi
+            fb_devices = ['/dev/fb0', '/dev/fb1']
+
+            for fb_device in fb_devices:
+                if not os.path.exists(fb_device):
+                    continue
+
+                try:
+                    # Get framebuffer info
+                    # Assume 1920x1080 @ 32bpp (common for HDMI)
+                    # 1920 * 1080 * 4 bytes = 8,294,400 bytes
+                    width = 1920
+                    height = 1080
+                    bytes_per_pixel = 4  # 32-bit color (RGBA)
+                    buffer_size = width * height * bytes_per_pixel
+
+                    # Create black buffer (all zeros)
+                    black_buffer = bytes(buffer_size)
+
+                    # Write to framebuffer - THIS IS INSTANT
+                    with open(fb_device, 'wb') as fb:
+                        fb.write(black_buffer)
+                        fb.flush()
+
+                    logger.debug(f"Framebuffer {fb_device} filled with black (instant)")
+
+                except Exception as e:
+                    # Try smaller resolution if error
+                    try:
+                        # Try 1280x720 fallback
+                        buffer_size = 1280 * 720 * 4
+                        black_buffer = bytes(buffer_size)
+                        with open(fb_device, 'wb') as fb:
+                            fb.write(black_buffer)
+                            fb.flush()
+                        logger.debug(f"Framebuffer {fb_device} filled with black (720p fallback)")
+                    except:
+                        logger.debug(f"Could not write to {fb_device}: {e}")
+
+        except Exception as e:
+            logger.debug(f"Error filling framebuffer with black: {e}")
 
     def _start_black_screen_display(self):
         """Display black image on framebuffer to completely hide terminal"""
@@ -589,12 +627,11 @@ class VideoPlayer:
             logger.error(f"Error stopping black screen display: {e}")
 
     def _clear_black_screen(self):
-        """Clear black screen (stop fbi and unblank framebuffer for video playback)"""
+        """Clear black screen (unblank framebuffer for video playback)"""
         try:
-            # Stop black screen framebuffer display (fbi)
-            self._stop_black_screen_display()
-
             # Unblank all framebuffers to allow video display
+            # The black pixels written by _fill_framebuffer_black will be
+            # overwritten by MPV when it starts playing
             for fb in ['/sys/class/graphics/fb0/blank', '/sys/class/graphics/fb1/blank']:
                 try:
                     if os.path.exists(fb):
@@ -603,7 +640,7 @@ class VideoPlayer:
                 except:
                     pass
 
-            logger.debug("Black screen cleared (framebuffer unblanked for video)")
+            logger.debug("Black screen cleared (framebuffer ready for video)")
         except Exception as e:
             logger.debug(f"Could not clear black screen: {e}")
 

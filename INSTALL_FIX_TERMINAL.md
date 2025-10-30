@@ -4,38 +4,39 @@
 Il terminale diventa visibile durante la transizione di 1.5 secondi tra un video e l'altro.
 
 ## Soluzione
-Questa versione usa `fbi` (framebuffer image viewer) per mostrare un'immagine nera direttamente sul framebuffer durante le transizioni, coprendo completamente il terminale.
+Questa versione scrive **direttamente nel framebuffer** `/dev/fb0` con pixel neri. Questo è **ISTANTANEO** - nessun ritardo da avvio di processi esterni.
 
-## Installazione pacchetti necessari
+## Installazione - NON servono pacchetti aggiuntivi!
 
 Esegui questi comandi sul Raspberry Pi:
 
 ```bash
-# 1. Installa fbi (framebuffer image viewer)
-sudo apt-get update
-sudo apt-get install -y fbi
-
-# 2. Installa ImageMagick (per creare l'immagine nera)
-sudo apt-get install -y imagemagick
-
-# 3. Crea l'immagine nera (verrà creata automaticamente al primo avvio, ma puoi crearla manualmente)
 cd ~/proiettore
-convert -size 1920x1080 xc:black black.png
 
-# 4. Riavvia il servizio
+# 1. Fai il pull delle modifiche
+git pull origin claude/fix-terminal-visibility-011CUe1uBx6vPuH8cijKZNmW
+
+# 2. Riavvia il servizio
 sudo systemctl restart proiettore
 
-# 5. Verifica che funzioni
+# 3. Verifica che funzioni
 sudo systemctl status proiettore
 tail -f ~/proiettore/proiettore.log
 ```
 
 ## Come funziona
 
-1. All'avvio, il programma nasconde permanentemente il cursore del terminale
-2. Durante le transizioni tra video, invece di mostrare solo uno schermo nero, viene avviato `fbi` che mostra un'immagine nera sul framebuffer
-3. Quando il nuovo video inizia, `fbi` viene terminato e MPV prende il controllo del framebuffer
-4. Il terminale rimane sempre nascosto sotto l'immagine nera o il video
+1. **All'avvio**: Il programma nasconde permanentemente il cursore del terminale su tutti i TTY
+2. **Durante transizioni**: Il framebuffer `/dev/fb0` viene riempito istantaneamente con pixel neri (8.3MB di zeri)
+3. **Quando inizia il video**: MPV sovrascrive i pixel neri con il video
+4. **Risultato**: Zero ritardi, zero processi esterni, nero istantaneo
+
+## Vantaggi rispetto a `fbi`
+
+- ✅ **ISTANTANEO**: Nessun tempo di avvio processo
+- ✅ **Nessuna dipendenza**: Non servono pacchetti esterni
+- ✅ **Più affidabile**: Scrittura diretta nel framebuffer
+- ✅ **Zero overhead**: Nessun processo in background
 
 ## Verifica funzionamento
 
@@ -44,31 +45,33 @@ Nel log dovresti vedere questi messaggi:
 ```
 INFO - Hiding terminal permanently on all TTYs...
 INFO - Terminal permanently hidden
-DEBUG - Black screen display started (PID: ...)
-DEBUG - Black screen display stopped
+DEBUG - Black screen activated (instant framebuffer fill)
+DEBUG - Framebuffer /dev/fb0 filled with black (instant)
+DEBUG - Black screen cleared (framebuffer ready for video)
 ```
 
 ## Troubleshooting
 
-Se il terminale è ancora visibile:
+Se il terminale è ancora visibile per un istante:
 
-1. Verifica che `fbi` sia installato:
+1. Verifica i permessi del framebuffer:
    ```bash
-   which fbi
+   ls -l /dev/fb0
+   sudo chmod 666 /dev/fb0  # Se necessario
    ```
 
-2. Verifica che l'immagine nera esista:
+2. Verifica che il framebuffer esista:
    ```bash
-   ls -lh ~/proiettore/black.png
+   ls -l /dev/fb*
    ```
 
-3. Testa `fbi` manualmente:
+3. Controlla i log per errori:
    ```bash
-   sudo fbi --noverbose --autozoom -T 1 ~/proiettore/black.png
-   # Premi 'q' per uscire
+   tail -100 ~/proiettore/proiettore.log | grep -i "framebuffer\|terminal\|black"
    ```
 
-4. Controlla i log per errori:
+4. Testa la scrittura manuale nel framebuffer:
    ```bash
-   tail -50 ~/proiettore/proiettore.log | grep -i "black\|terminal\|fbi"
+   # Riempi schermo di nero (1920x1080x4 = 8.3MB)
+   sudo dd if=/dev/zero of=/dev/fb0 bs=8294400 count=1
    ```
